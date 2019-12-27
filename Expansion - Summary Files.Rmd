@@ -251,8 +251,39 @@ disability_df <- rbind(acs2005_disability_vars,
 write_csv(disability_df, "")
 ```
 
+# Employment by age, 2005-2006, 2008-2018
+
 ```{r}
 
+employment_by_age <- function(df) {
+df_name <- deparse(substitute(df))
+  
+  df_year <- as.numeric(substr(df_name, 4, 7))
+acs2006 %>%
+  dplyr::select(CBSA, starts_with("B23001")) %>%
+  transmute(CBSA = CBSA,
+                Employed_16_19 = (B23001e5 + B23001e7 + B23001e91 + B23001e93)/(B23001e3 + B23001e89),
+                Employed_20_34 = (B23001e12 + B23001e14 + B23001e19 + B23001e21 + B23001e26 + B23001e28 + B23001e28 + B23001e33 + B23001e35 + B23001e98 + B23001e100 + B23001e105 + B23001e107 + B23001e112 + B23001e114 + B23001e119 + B23001e121)/(B23001e10 + B23001e17 + B23001e24 + B23001e31 + B23001e96 + B23001e103 + B23001e110 + B23001e117),
+            Employed_35_64 = (B23001e40 + B23001e42 + B23001e47 + B23001e49 + B23001e54 + B23001e56 + B23001e61 + B23001e63 + B23001e68 + B23001e70 + B23001e126 + B23001e128 + B23001e133 + B23001e135 + B23001e140 + B23001e142 + B23001e147 + B23001e149 + B23001e154 + B23001e156)/(B23001e38 + B23001e45 + B23001e52 + B23001e59 + B23001e66 + B23001e124 + B23001e131 + B23001e138 + B23001e145 + B23001e152),
+            Employed_65_over = (B23001e75 + B23001e80 + B23001e85 + B23001e161 + B23001e166 + B23001e171)/(B23001e73 + B23001e78 + B23001e83 + B23001e159 + B23001e164 + B23001e169)) %>%
+  arrange(desc(Employed_16_19)) %>%
+  mutate(Rank_employed_16_19 = row_number()) %>%
+  arrange(desc(Employed_20_34)) %>%
+  mutate(Rank_employed_20_34 = row_number()) %>%
+  arrange(desc(Employed_35_64)) %>%
+  mutate(Rank_employed_35_64 = row_number()) %>%
+  arrange(desc(Employed_65_over)) %>%
+  mutate(Rank_employed_65_over = row_number()) %>%
+  unite(`16-19`, Employed_16_19, Rank_employed_16_19) %>%
+  unite(`20-34`, Employed_20_34, Rank_employed_20_34) %>%
+  unite(`35-64`, Employed_35_64, Rank_employed_35_64) %>%
+  unite(`65+`, Employed_65_over, Rank_employed_65_over) %>%
+  gather(`16-19`:`65+`, key = "EQUITY_GROUP", value = "Measure_rank") %>%
+  mutate(EQUITY_CHARACTERISTIC = "Age",
+         TOPIC_AREA = "Employment:equity group population ratio") %>%
+  separate(Measure_rank, into = c("Measure", "Rank of measure"), sep = "_") %>%
+  gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE")
+}
 
 ```
 

@@ -55,7 +55,7 @@ list2env(purrr::map(set_names(acs_files, make_names(acs_files)), read_csv), envi
 
 ```
 
-# Employment status and poverty status by disability (2005-2006, 2008-2018)
+# Employment status and poverty status by disability (2005-2018)
 
 Use odds ratio to calculate disparities (see Matt Schroeder's helpful explanation below).
 
@@ -71,9 +71,9 @@ Calculate odds of those with 1+ disabilities being at/above poverty relative to 
 #'
 #' Using separate 1-year ACS summary files, calculates employment and poverty status by disability
 #'
-#' @param df dataframe containing 1-year ACS summary file data for a year 2005 or later; in this case from local, custom-processed files in N:/CommDev/Research/Research/Census
+#' @param df dataframe named in the format "acsXXXX" where XXXX is the year and containing 1-year ACS summary file data for a year 2005 or later; in this case from local, custom-processed files in N:/CommDev/Research/Research/Census
 #'
-#' @return dataframe with original df name appended with "_disability_vars"
+#' @return dataframe appended with "_disability_vars" containing employment status and poverty status by disability for 26 US metros for 2005-2018
 #' 
 #' @examples
 #' disability_vars(acs2009)
@@ -106,7 +106,7 @@ disability_vars <- function(df) {
     
     invisible(df_pared)
     
-  } else if (df_year == 2006 | df_year == 2005) {
+  } else if (df_year <= 2007 & df_year >= 2005) {
     
     # Years 2005 and 2006
     df_pared <- df %>%
@@ -141,7 +141,7 @@ disability_vars <- function(df) {
   
   else {
     
-    print("Missing data for year 2007.")
+    print("Missing data for input.")
   }
   
   # Same calculation process for all years
@@ -222,6 +222,7 @@ disability_vars <- function(df) {
 
 disability_vars(acs2005)
 disability_vars(acs2006)
+disability_vars(acs2007)
 disability_vars(acs2008)
 disability_vars(acs2009)
 disability_vars(acs2010)
@@ -248,10 +249,11 @@ disability_df <- rbind(acs2005_disability_vars,
                        acs2017_disability_vars,
                        acs2018_disability_vars)
 
-write_csv(disability_df, "")
+#write_csv(disability_df, "")
+
 ```
 
-# Employment by age (B23001), 2005-2006, 2008-2018
+# Employment by age (B23001) (2005-2018)
 
 ```{r}
 
@@ -292,6 +294,7 @@ employment_by_age <- function(df) {
 
 employment_by_age(acs2005)
 employment_by_age(acs2006)
+employment_by_age(acs2007)
 employment_by_age(acs2008)
 employment_by_age(acs2009)
 employment_by_age(acs2010)
@@ -306,6 +309,7 @@ employment_by_age(acs2018)
 
 e_by_age_df <- rbind(acs2005_e_by_age,
                      acs2006_e_by_age,
+                     acs2007_e_by_age,
                      acs2008_e_by_age,
                      acs2009_e_by_age,
                      acs2010_e_by_age,

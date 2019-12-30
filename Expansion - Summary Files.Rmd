@@ -8,6 +8,7 @@ library(tidyverse)
 library(purrr)
 library(roxygen2)
 library(data.table)
+source("N:\\CommDev\\Research\\Public\\Overview of Census and ACS Data\\sumRange.R")
 ```
 
 # Function to name files
@@ -55,6 +56,31 @@ list2env(purrr::map(set_names(acs_files, make_names(acs_files)), read_csv), envi
 
 ```
 
+```{r}
+#' Sum variables within a range and by a certain interval
+#'
+#' Creates an unquoted sum statement to be used with the "mutate" function
+#'
+#' @param table Census table ID, including "e" or zeros
+#' @param start first row in range to be summed
+#' @param end last row in range to be summed
+#' @param int intervals at which the rows occur
+#' 
+#' @return unquoted sum string that can be used in tandem with "mutate" to create new variable
+#' 
+#' @example
+#' censusSum("B18130e", 5, 40, 7)
+#'
+#' @export 
+
+censusSum <- function(table, start, end, int) {
+  
+parse(text = paste(rep(table), seq(from = start, to = end, by = int), sep = "", collapse = " + "))
+  
+}
+
+```
+
 # Employment status and poverty status by disability (2005-2018)
 
 Use odds ratio to calculate disparities (see Matt Schroeder's helpful explanation below).
@@ -94,14 +120,14 @@ disability_vars <- function(df) {
     
   # Years 2009 and later use different table codes than 2007-2008 or 2005-2006
     df_pared <- df %>%
-      dplyr::select(CBSA, B18120e4, B18120e13, B18120e22, B18120e11, B18120e20, B18120e29, starts_with("B18130")) %>%
+      dplyr::select(CBSA, starts_with("B18120"), starts_with("B18130")) %>%
       transmute(CBSA = CBSA,
                 Employed_disability = B18120e4/(B18120e4 + B18120e13 + B18120e22), # Denom = total population with disability
                 Employed_no_disability = B18120e11/(B18120e11 + B18120e20 + B18120e29), # Denom = total population with no disability
                 Above_poverty_disability = B18130e5 + B18130e12 + B18130e19 + B18130e26 + B18130e33 + B18130e40,
-                Above_poverty_no_disability = B18130e8 + B18130e15 + B18130e22 + B18130e29 + B18130e36 + B18130e43,
-                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + B18130e4 + B18130e11 + B18130e18 + B18130e25 + B18130e32 + B18130e39),
-                Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + B18130e7 + B18130e14 + B18130e21 + B18130e28 + B18130e35 + B18130e42)) %>%
+                Above_poverty_no_disability = eval(censusSum("B18130e", 8, 43, 7)),
+                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + eval(censusSum("B18130e", 4, 39, 7))),
+                Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + eval(censusSum("B18130e", 7, 42, 7)))) %>%
       dplyr::select(-Above_poverty_disability, -Above_poverty_no_disability)
     
     invisible(df_pared)
@@ -115,7 +141,7 @@ disability_vars <- function(df) {
                 Employed_disability = (B18020e5 + B18020e8 + B18020e12 + B18020e15)/B18020e2, # Num = males and females of two different age groups that have 1+ disabilities and are employed
                 Employed_no_disability = (B18020e20 + B18020e23 + B18020e27 + B18020e30)/B18020e17,
                 Prop_above_poverty_disability = (B18030e6 + B18030e9 + B18030e12 + B18030e15 + B18030e19 + B18030e22 + B18030e25 + B18030e28)/B18030e2,
-                Prop_above_poverty_no_disability = (B18030e33 + B18030e36 + B18030e39 + B18030e42 + B18030e46 + B18030e49 + B18030e52 + B18030e55)/B18030e29)
+                Prop_above_poverty_no_disability = (eval(censusSum("B18030e", 33, 42, 3)) + eval(censusSum("B18030e", 46, 55, 3)))/B18030e29)
     
     invisible(df_pared)
     
@@ -123,16 +149,16 @@ disability_vars <- function(df) {
   
   else if (df_year == 2008) {
     
-     # Variable C18120 not available in imported Excel; use age by disability by employment status table instead
+     
     df_pared <- df %>%
       dplyr::select(CBSA, starts_with("B18120"), starts_with("B18130")) %>%
       transmute(CBSA = CBSA,
                 Employed_disability = (B18120e4 + B18120e11)/(B18120e3 + B18120e10),
                 Employed_no_disability = (B18120e7 + B18120e14)/(B18120e6 + B18120e13),
-                Above_poverty_disability = B18130e5 + B18130e12 + B18130e19 + B18130e26 + B18130e33 + B18130e40,
-                Above_poverty_no_disability = B18130e8 + B18130e15 + B18130e22 + B18130e29 + B18130e36 + B18130e43,
-                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + B18130e4 + B18130e11 + B18130e18 + B18130e25 + B18130e32 + B18130e39),
-                Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + B18130e7 + B18130e14 + B18130e21 + B18130e28 + B18130e35 + B18130e42)) %>%
+                Above_poverty_disability = eval(censusSum("B18130e", 5, 40, 7)),
+                Above_poverty_no_disability = eval(censusSum("B18130e", 8, 43, 7)),
+                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + eval(censusSum("B18130e", 4, 39, 7))),
+                Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + eval(censusSum("B18130e", 7, 42, 7)))) %>%
       dplyr::select(-Above_poverty_disability, -Above_poverty_no_disability)
     
     invisible(df_pared)
@@ -193,7 +219,7 @@ disability_vars <- function(df) {
            MEASURE = recode(MEASURE, `Rank_disparity` = "Rank of disparity"),
            EQUITY_CHARACTERISTIC = "Disability",
            TOPIC_AREA = ifelse(TOPIC_AREA == "Poverty_status", "At/above poverty:equity group population ratio", "Employment:equity group population ratio")) %>%
-    mutate(Year = str_replace(df_name, pattern = "acs", replacement = "")) %>%
+    mutate(YEAR = str_replace(df_name, pattern = "acs", replacement = "")) %>%
     mutate(Rank_reference = ifelse(EQUITY_GROUP == "No disability" & MEASURE == "Rank of disparity", 1, 0)) %>%
     filter(Rank_reference != 1) %>% # Remove lines that refer to reference group disparity
     dplyr::select(-Rank_reference)
@@ -250,7 +276,28 @@ disability_df <- rbind(acs2005_disability_vars,
                        acs2018_disability_vars)
 
 #write_csv(disability_df, "")
+```
 
+```{r}
+library(eply)
+try_summing <- function(df){
+
+
+  df_new <<- df %>%
+    dplyr::select(starts_with("B18130")) %>%
+    transmute(sum_b18020 = eval(parse(text = paste(rep("B18130e", 5), seq(from = 5, to = 40, by = 7), sep = "", collapse = " + "))))
+
+}
+
+
+
+try_sum2 <- function(df) {
+  df_new2 <<- df %>%
+    dplyr::select(starts_with("B18130")) %>%
+    transmute(sum_b18020 = censusSum("B18130"), 5, 40, 7)
+}
+
+parse(text = paste(rep("B18130e", 5), seq(from = 5, to = 40, by = 7), sep = "", collapse = " + "))
 ```
 
 # Employment by age (B23001) (2005-2018)
@@ -286,7 +333,8 @@ employment_by_age <- function(df) {
     mutate(EQUITY_CHARACTERISTIC = "Age",
            TOPIC_AREA = "Employment:equity group population ratio") %>%
     separate(Measure_rank, into = c("Measure", "Rank of measure"), sep = "_") %>%
-    gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE")
+    gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE") %>%
+    mutate(YEAR = str_replace(df_name, pattern = "acs", replacement = ""))
   
   assign(paste(df_name, "e_by_age", sep = "_"), df_tidy, envir = .GlobalEnv)
   
@@ -324,6 +372,83 @@ e_by_age_df <- rbind(acs2005_e_by_age,
 
 ```
 
+# Poverty by age (B17020) (2005-2018)
+
+```{r}
+
+poverty_by_age <- function(df) {
+  
+  df_name <- deparse(substitute(df))
+  
+  df_year <- as.numeric(substr(df_name, 4, 7))
+  
+  df_tidy <- df %>%
+    dplyr::select(CBSA, starts_with("B23001")) %>%
+    transmute(CBSA = CBSA,
+              Employed_16_19 = (B23001e5 + B23001e7 + B23001e91 + B23001e93)/(B23001e3 + B23001e89),
+              Employed_20_34 = (B23001e12 + B23001e14 + B23001e19 + B23001e21 + B23001e26 + B23001e28 + B23001e28 + B23001e33 + B23001e35 + B23001e98 + B23001e100 + B23001e105 + B23001e107 + B23001e112 + B23001e114 + B23001e119 + B23001e121)/(B23001e10 + B23001e17 + B23001e24 + B23001e31 + B23001e96 + B23001e103 + B23001e110 + B23001e117),
+              Employed_35_64 = (B23001e40 + B23001e42 + B23001e47 + B23001e49 + B23001e54 + B23001e56 + B23001e61 + B23001e63 + B23001e68 + B23001e70 + B23001e126 + B23001e128 + B23001e133 + B23001e135 + B23001e140 + B23001e142 + B23001e147 + B23001e149 + B23001e154 + B23001e156)/(B23001e38 + B23001e45 + B23001e52 + B23001e59 + B23001e66 + B23001e124 + B23001e131 + B23001e138 + B23001e145 + B23001e152),
+              Employed_65_over = (B23001e75 + B23001e80 + B23001e85 + B23001e161 + B23001e166 + B23001e171)/(B23001e73 + B23001e78 + B23001e83 + B23001e159 + B23001e164 + B23001e169)) %>%
+    arrange(desc(Employed_16_19)) %>%
+    mutate(Rank_employed_16_19 = row_number()) %>%
+    arrange(desc(Employed_20_34)) %>%
+    mutate(Rank_employed_20_34 = row_number()) %>%
+    arrange(desc(Employed_35_64)) %>%
+    mutate(Rank_employed_35_64 = row_number()) %>%
+    arrange(desc(Employed_65_over)) %>%
+    mutate(Rank_employed_65_over = row_number()) %>%
+    unite(`16-19`, Employed_16_19, Rank_employed_16_19) %>%
+    unite(`20-34`, Employed_20_34, Rank_employed_20_34) %>%
+    unite(`35-64`, Employed_35_64, Rank_employed_35_64) %>%
+    unite(`65+`, Employed_65_over, Rank_employed_65_over) %>%
+    gather(`16-19`:`65+`, key = "EQUITY_GROUP", value = "Measure_rank") %>%
+    mutate(EQUITY_CHARACTERISTIC = "Age",
+           TOPIC_AREA = "Employment:equity group population ratio") %>%
+    separate(Measure_rank, into = c("Measure", "Rank of measure"), sep = "_") %>%
+    gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE") %>%
+    mutate(YEAR = str_replace(df_name, pattern = "acs", replacement = ""))
+  
+  assign(paste(df_name, "p_by_age", sep = "_"), df_tidy, envir = .GlobalEnv)
+  
+}
+
+# employment_by_age(acs2005)
+# employment_by_age(acs2006)
+employment_by_age(acs2007)
+employment_by_age(acs2008)
+employment_by_age(acs2009)
+employment_by_age(acs2010)
+employment_by_age(acs2011)
+employment_by_age(acs2012)
+employment_by_age(acs2013)
+employment_by_age(acs2014)
+employment_by_age(acs2015)
+employment_by_age(acs2016)
+employment_by_age(acs2017)
+employment_by_age(acs2018)
+
+e_by_age_df <- rbind(acs2005_e_by_age,
+                     acs2006_e_by_age,
+                     acs2007_e_by_age,
+                     acs2008_e_by_age,
+                     acs2009_e_by_age,
+                     acs2010_e_by_age,
+                     acs2011_e_by_age,
+                     acs2012_e_by_age,
+                     acs2013_e_by_age,
+                     acs2014_e_by_age,
+                     acs2015_e_by_age,
+                     acs2016_e_by_age,
+                     acs2017_e_by_age,
+                     acs2018_e_by_age)
+
+
+acs2007 %>%
+  select(starts_with("B17001"))
+
+names_05 <- enframe(names(acs2005))
+```
+
 # Homeownership by age
 
 ```{r}
@@ -357,7 +482,8 @@ tenure_by_age <- function(df) {
     mutate(EQUITY_CHARACTERISTIC = "Age",
            TOPIC_AREA = "Owner-occupied units:equity group population ratio") %>%
     separate(Measure_rank, into = c("Measure", "Rank of measure"), sep = "_") %>%
-    gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE")
+    gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE") %>%
+    mutate(YEAR = str_replace(df_name, pattern = "acs", replacement = ""))
   
   assign(paste(df_name, "tenure_by_age", sep = "_"), df_tidy, envir = .GlobalEnv)
   
@@ -365,6 +491,7 @@ tenure_by_age <- function(df) {
 
 tenure_by_age(acs2005)
 tenure_by_age(acs2006)
+tenure_by_age(acs2007)
 tenure_by_age(acs2008)
 tenure_by_age(acs2009)
 tenure_by_age(acs2010)
@@ -378,18 +505,19 @@ tenure_by_age(acs2017)
 tenure_by_age(acs2018)
 
 tenure_by_age_df <- rbind(acs2005_tenure_by_age,
-                     acs2006_tenure_by_age,
-                     acs2008_tenure_by_age,
-                     acs2009_tenure_by_age,
-                     acs2010_tenure_by_age,
-                     acs2011_tenure_by_age,
-                     acs2012_tenure_by_age,
-                     acs2013_tenure_by_age,
-                     acs2014_tenure_by_age,
-                     acs2015_tenure_by_age,
-                     acs2016_tenure_by_age,
-                     acs2017_tenure_by_age,
-                     acs2018_tenure_by_age)
+                          acs2006_tenure_by_age,
+                          acs2007_tenure_by_age,
+                          acs2008_tenure_by_age,
+                          acs2009_tenure_by_age,
+                          acs2010_tenure_by_age,
+                          acs2011_tenure_by_age,
+                          acs2012_tenure_by_age,
+                          acs2013_tenure_by_age,
+                          acs2014_tenure_by_age,
+                          acs2015_tenure_by_age,
+                          acs2016_tenure_by_age,
+                          acs2017_tenure_by_age,
+                          acs2018_tenure_by_age)
 
 ```
 

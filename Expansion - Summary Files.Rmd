@@ -57,6 +57,7 @@ list2env(purrr::map(set_names(acs_files, make_names(acs_files)), read_csv), envi
 ```
 
 ```{r}
+library(rlang)
 #' Sum variables within a range and by a certain interval
 #'
 #' Creates an unquoted sum statement to be used with the "mutate" function
@@ -75,10 +76,12 @@ list2env(purrr::map(set_names(acs_files, make_names(acs_files)), read_csv), envi
 
 censusSum <- function(table, start, end, int) {
   
-parse(text = paste(rep(table), seq(from = start, to = end, by = int), sep = "", collapse = " + "))
+ rlang::parse_expr(paste(rep(table), seq(from = start, to = end, by = int), sep = "", collapse = " + "))
   
 }
 
+# Non-rlang equivalent, then has to be wrapped in "eval()" function
+# parse(text =
 ```
 
 # Employment status and poverty status by disability (2005-2018)
@@ -124,10 +127,10 @@ disability_vars <- function(df) {
       transmute(CBSA = CBSA,
                 Employed_disability = B18120e4/(B18120e4 + B18120e13 + B18120e22), # Denom = total population with disability
                 Employed_no_disability = B18120e11/(B18120e11 + B18120e20 + B18120e29), # Denom = total population with no disability
-                Above_poverty_disability = B18130e5 + B18130e12 + B18130e19 + B18130e26 + B18130e33 + B18130e40,
-                Above_poverty_no_disability = eval(censusSum("B18130e", 8, 43, 7)),
-                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + eval(censusSum("B18130e", 4, 39, 7))),
-                Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + eval(censusSum("B18130e", 7, 42, 7)))) %>%
+                Above_poverty_disability = !! censusSum("B18130e", 5, 40, 7),
+                Above_poverty_no_disability = !! censusSum("B18130e", 8, 43, 7),
+                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + !! censusSum("B18130e", 4, 39, 7)),
+                Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + !! censusSum("B18130e", 7, 42, 7))) %>%
       dplyr::select(-Above_poverty_disability, -Above_poverty_no_disability)
     
     invisible(df_pared)
@@ -140,8 +143,8 @@ disability_vars <- function(df) {
       transmute(CBSA = CBSA,
                 Employed_disability = (B18020e5 + B18020e8 + B18020e12 + B18020e15)/B18020e2, # Num = males and females of two different age groups that have 1+ disabilities and are employed
                 Employed_no_disability = (B18020e20 + B18020e23 + B18020e27 + B18020e30)/B18020e17,
-                Prop_above_poverty_disability = (B18030e6 + B18030e9 + B18030e12 + B18030e15 + B18030e19 + B18030e22 + B18030e25 + B18030e28)/B18030e2,
-                Prop_above_poverty_no_disability = (eval(censusSum("B18030e", 33, 42, 3)) + eval(censusSum("B18030e", 46, 55, 3)))/B18030e29)
+                Prop_above_poverty_disability = (!! censusSum("B18030e", 6, 15, 3) + B18030e19 + B18030e22 + B18030e25 + B18030e28)/B18030e2,
+                Prop_above_poverty_no_disability = (!! censusSum("B18030e", 33, 42, 3) + !! censusSum("B18030e", 46, 55, 3))/B18030e29)
     
     invisible(df_pared)
     
@@ -155,10 +158,10 @@ disability_vars <- function(df) {
       transmute(CBSA = CBSA,
                 Employed_disability = (B18120e4 + B18120e11)/(B18120e3 + B18120e10),
                 Employed_no_disability = (B18120e7 + B18120e14)/(B18120e6 + B18120e13),
-                Above_poverty_disability = eval(censusSum("B18130e", 5, 40, 7)),
-                Above_poverty_no_disability = eval(censusSum("B18130e", 8, 43, 7)),
-                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + eval(censusSum("B18130e", 4, 39, 7))),
-                Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + eval(censusSum("B18130e", 7, 42, 7)))) %>%
+                Above_poverty_disability = !! censusSum("B18130e", 5, 40, 7),
+                Above_poverty_no_disability = !! censusSum("B18130e", 8, 43, 7),
+                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + !! censusSum("B18130e", 4, 39, 7)),
+                Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + !! censusSum("B18130e", 7, 42, 7))) %>%
       dplyr::select(-Above_poverty_disability, -Above_poverty_no_disability)
     
     invisible(df_pared)
@@ -279,25 +282,25 @@ disability_df <- rbind(acs2005_disability_vars,
 ```
 
 ```{r}
-library(eply)
-try_summing <- function(df){
-
-
-  df_new <<- df %>%
-    dplyr::select(starts_with("B18130")) %>%
-    transmute(sum_b18020 = eval(parse(text = paste(rep("B18130e", 5), seq(from = 5, to = 40, by = 7), sep = "", collapse = " + "))))
-
-}
-
-
-
-try_sum2 <- function(df) {
-  df_new2 <<- df %>%
-    dplyr::select(starts_with("B18130")) %>%
-    transmute(sum_b18020 = censusSum("B18130"), 5, 40, 7)
-}
-
-parse(text = paste(rep("B18130e", 5), seq(from = 5, to = 40, by = 7), sep = "", collapse = " + "))
+# try_summing <- function(df){
+# 
+# 
+#   df_new3 <<- df %>%
+#     dplyr::select(starts_with("B18130")) %>%
+#     transmute(sum_b18020 = eval(parse(text = paste(rep("B18130e", 5), seq(from = 5, to = 40, by = 7), sep = "", collapse = " + "))))
+# 
+# }
+# 
+# try_summing(acs2009)
+# 
+# 
+# try_sum2 <- function(df) {
+#   df_new2 <<- df %>%
+#     dplyr::select(starts_with("B18130")) %>%
+#     transmute(sum_b18020 = censusSum("B18130"), 5, 40, 7)
+# }
+# 
+# parse(text = paste(rep("B18130e", 5), seq(from = 5, to = 40, by = 7), sep = "", collapse = " + "))
 ```
 
 # Employment by age (B23001) (2005-2018)

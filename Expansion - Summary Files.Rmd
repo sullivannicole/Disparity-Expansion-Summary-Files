@@ -60,17 +60,17 @@ list2env(purrr::map(set_names(acs_files, make_names(acs_files)), read_csv), envi
 library(rlang)
 #' Sum variables within a range and by a certain interval
 #'
-#' Creates an unquoted sum statement to be used with the "mutate" function
+#' Creates a sum expression to be used with the "mutate" function
 #'
 #' @param table Census table ID, including "e" or zeros
 #' @param start first row in range to be summed
 #' @param end last row in range to be summed
 #' @param int intervals at which the rows occur
 #' 
-#' @return unquoted sum string that can be used in tandem with "mutate" to create new variable
+#' @return expression that can be used in tandem with "mutate" to create new variable
 #' 
 #' @example
-#' censusSum("B18130e", 5, 40, 7)
+#' mutate(df, Employment_by_disability = !! censusSum("B18130e", 5, 40, 7))
 #'
 #' @export 
 
@@ -386,7 +386,7 @@ poverty_by_age <- function(df) {
   df_year <- as.numeric(substr(df_name, 4, 7))
   
   df_tidy <- df %>%
-    dplyr::select(CBSA, starts_with("B23001")) %>%
+    dplyr::select(CBSA, starts_with("B17020")) %>%
     transmute(CBSA = CBSA,
               Employed_16_19 = (B23001e5 + B23001e7 + B23001e91 + B23001e93)/(B23001e3 + B23001e89),
               Employed_20_34 = (B23001e12 + B23001e14 + B23001e19 + B23001e21 + B23001e26 + B23001e28 + B23001e33 + B23001e35 + B23001e98 + B23001e100 + B23001e105 + B23001e107 + B23001e112 + B23001e114 + B23001e119 + B23001e121)/(B23001e10 + B23001e17 + B23001e24 + B23001e31 + B23001e96 + B23001e103 + B23001e110 + B23001e117),

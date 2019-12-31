@@ -195,22 +195,22 @@ disability_vars <- function(df) {
   
 
   # Poverty status by disability 
-  df_poverty <- df_pared %>%
-    mutate(Odds_no_poverty_no_disability = Prop_above_poverty_no_disability/(1-Prop_above_poverty_no_disability), # Create odds variable (See "OddsRatioDemo.xlsx for more info")
-           Odds_no_poverty_disability = Prop_above_poverty_disability/(1-Prop_above_poverty_disability), # Create odds variable
-           Poverty_disparity = Odds_no_poverty_disability/Odds_no_poverty_no_disability) %>% # Ratio of odds of being above poverty (disability:no disability)
-    dplyr::select(-Odds_no_poverty_no_disability, -Odds_no_poverty_disability, -Employed_disability, -Employed_no_disability) %>%
-    arrange(desc(Prop_above_poverty_disability)) %>% # Higher rates of no poverty amongst those with disability = better
-    mutate(Rank_no_poverty_disability = dplyr::row_number()) %>%
-    arrange(desc(Prop_above_poverty_no_disability)) %>% # Higher rates of no poverty amongst those with no disabilities = better
-    mutate(Rank_no_poverty_no_disability = dplyr::row_number()) %>%
-    arrange(Poverty_disparity) %>% # Lower odds of no poverty for disability relative to no disability = wider disparity
-    mutate(Rank_disparity = dplyr::row_number()) %>%
-    dplyr::select(-Poverty_disparity) %>%
-    unite(Poverty_status_disability, Rank_no_poverty_disability, Prop_above_poverty_disability) %>%
-    unite(Poverty_status_no_disability, Rank_no_poverty_no_disability, Prop_above_poverty_no_disability) %>%
-    gather(Poverty_status_disability, Poverty_status_no_disability, key = "Topic_area_equity_group", value = "Rank_measure") %>%
-    separate(Topic_area_equity_group, into = c("TOPIC_AREA", "EQUITY_GROUP"), sep = 14)
+      df_poverty <- df_pared %>%
+        mutate(Odds_no_poverty_no_disability = Prop_above_poverty_no_disability/(1-Prop_above_poverty_no_disability), # Create odds variable (See "OddsRatioDemo.xlsx for more info")
+               Odds_no_poverty_disability = Prop_above_poverty_disability/(1-Prop_above_poverty_disability), # Create odds variable
+               Poverty_disparity = Odds_no_poverty_disability/Odds_no_poverty_no_disability) %>% # Ratio of odds of being above poverty (disability:no disability)
+        dplyr::select(-Odds_no_poverty_no_disability, -Odds_no_poverty_disability, -Employed_disability, -Employed_no_disability) %>%
+        arrange(desc(Prop_above_poverty_disability)) %>% # Higher rates of no poverty amongst those with disability = better
+        mutate(Rank_no_poverty_disability = dplyr::row_number()) %>%
+        arrange(desc(Prop_above_poverty_no_disability)) %>% # Higher rates of no poverty amongst those with no disabilities = better
+        mutate(Rank_no_poverty_no_disability = dplyr::row_number()) %>%
+        arrange(Poverty_disparity) %>% # Lower odds of no poverty for disability relative to no disability = wider disparity
+        mutate(Rank_disparity = dplyr::row_number()) %>%
+        dplyr::select(-Poverty_disparity) %>%
+        unite(Poverty_status_disability, Rank_no_poverty_disability, Prop_above_poverty_disability) %>%
+        unite(Poverty_status_no_disability, Rank_no_poverty_no_disability, Prop_above_poverty_no_disability) %>%
+        gather(Poverty_status_disability, Poverty_status_no_disability, key = "Topic_area_equity_group", value = "Rank_measure") %>%
+        separate(Topic_area_equity_group, into = c("TOPIC_AREA", "EQUITY_GROUP"), sep = 14)
   
   
   disability <- rbind(df_employment, df_poverty)
@@ -317,7 +317,7 @@ employment_by_age <- function(df) {
     dplyr::select(CBSA, starts_with("B23001")) %>%
     transmute(CBSA = CBSA,
               Employed_16_19 = (B23001e5 + B23001e7 + B23001e91 + B23001e93)/(B23001e3 + B23001e89),
-              Employed_20_34 = (B23001e12 + B23001e14 + B23001e19 + B23001e21 + B23001e26 + B23001e28 + B23001e28 + B23001e33 + B23001e35 + B23001e98 + B23001e100 + B23001e105 + B23001e107 + B23001e112 + B23001e114 + B23001e119 + B23001e121)/(B23001e10 + B23001e17 + B23001e24 + B23001e31 + B23001e96 + B23001e103 + B23001e110 + B23001e117),
+              Employed_20_34 = (B23001e12 + B23001e14 + B23001e19 + B23001e21 + B23001e26 + B23001e28 + B23001e33 + B23001e35 + B23001e98 + B23001e100 + B23001e105 + B23001e107 + B23001e112 + B23001e114 + B23001e119 + B23001e121)/(!! censusSum("B23001e", 10, 31, 7) + !! censusSum("B23001e", 96, 117, 7)),
               Employed_35_64 = (B23001e40 + B23001e42 + B23001e47 + B23001e49 + B23001e54 + B23001e56 + B23001e61 + B23001e63 + B23001e68 + B23001e70 + B23001e126 + B23001e128 + B23001e133 + B23001e135 + B23001e140 + B23001e142 + B23001e147 + B23001e149 + B23001e154 + B23001e156)/(B23001e38 + B23001e45 + B23001e52 + B23001e59 + B23001e66 + B23001e124 + B23001e131 + B23001e138 + B23001e145 + B23001e152),
               Employed_65_over = (B23001e75 + B23001e80 + B23001e85 + B23001e161 + B23001e166 + B23001e171)/(B23001e73 + B23001e78 + B23001e83 + B23001e159 + B23001e164 + B23001e169)) %>%
     arrange(desc(Employed_16_19)) %>%
@@ -389,7 +389,7 @@ poverty_by_age <- function(df) {
     dplyr::select(CBSA, starts_with("B23001")) %>%
     transmute(CBSA = CBSA,
               Employed_16_19 = (B23001e5 + B23001e7 + B23001e91 + B23001e93)/(B23001e3 + B23001e89),
-              Employed_20_34 = (B23001e12 + B23001e14 + B23001e19 + B23001e21 + B23001e26 + B23001e28 + B23001e28 + B23001e33 + B23001e35 + B23001e98 + B23001e100 + B23001e105 + B23001e107 + B23001e112 + B23001e114 + B23001e119 + B23001e121)/(B23001e10 + B23001e17 + B23001e24 + B23001e31 + B23001e96 + B23001e103 + B23001e110 + B23001e117),
+              Employed_20_34 = (B23001e12 + B23001e14 + B23001e19 + B23001e21 + B23001e26 + B23001e28 + B23001e33 + B23001e35 + B23001e98 + B23001e100 + B23001e105 + B23001e107 + B23001e112 + B23001e114 + B23001e119 + B23001e121)/(B23001e10 + B23001e17 + B23001e24 + B23001e31 + B23001e96 + B23001e103 + B23001e110 + B23001e117),
               Employed_35_64 = (B23001e40 + B23001e42 + B23001e47 + B23001e49 + B23001e54 + B23001e56 + B23001e61 + B23001e63 + B23001e68 + B23001e70 + B23001e126 + B23001e128 + B23001e133 + B23001e135 + B23001e140 + B23001e142 + B23001e147 + B23001e149 + B23001e154 + B23001e156)/(B23001e38 + B23001e45 + B23001e52 + B23001e59 + B23001e66 + B23001e124 + B23001e131 + B23001e138 + B23001e145 + B23001e152),
               Employed_65_over = (B23001e75 + B23001e80 + B23001e85 + B23001e161 + B23001e166 + B23001e171)/(B23001e73 + B23001e78 + B23001e83 + B23001e159 + B23001e164 + B23001e169)) %>%
     arrange(desc(Employed_16_19)) %>%
@@ -467,7 +467,7 @@ tenure_by_age <- function(df) {
     transmute(CBSA = CBSA,
               Owner_occ_15_24 = B25007e3/(B25007e3 + B25007e13),
               Owner_occ_25_34 = B25007e4/(B25007e4 + B25007e14),
-              Owner_occ_35_64 = (B25007e5 + B25007e6 + B25007e7 + B25007e8)/(B25007e5 + B25007e6 + B25007e7 + B25007e8 + B25007e15 + B25007e16 + B25007e17 + B25007e18),
+              Owner_occ_35_64 = (!! censusSum("B25007", 5, 8, 1))/(!! censusSum("B25007", 5, 8, 1) + !! censusSum("B25007", 15, 18, 1)),
               Owner_occ_65_over = (B25007e9 + B25007e10 + B25007e11)/(B25007e9 + B25007e10 + B25007e11 + B25007e19 + B25007e20 + B25007e21)) %>%
     arrange(desc(Owner_occ_15_24)) %>%
     mutate(Rank_owner_occ_15_24 = row_number()) %>%

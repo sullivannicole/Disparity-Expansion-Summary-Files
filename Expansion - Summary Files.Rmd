@@ -387,6 +387,8 @@ e_by_age_df <- rbind(acs2005_e_by_age,
 
 # Poverty by age (B17001) (2005-2018)
 
+Disparity and rank of disparity aren't calculated.  No "typical" or "accepted" reference group for age exists.
+
 ```{r}
 
 poverty_by_age <- function(df) {
@@ -399,24 +401,24 @@ poverty_by_age <- function(df) {
     dplyr::select(CBSA, starts_with("B17001")) %>%
     transmute(CBSA = CBSA,
               Above_poverty_18_34 = !! census_sum_select("B17001e", c(39, 40, 53, 54)),
-              Above_poverty_35_64 = !! census_sum_select("B1700e1", c(41, 42, 43, 55, 56, 57)),
-              Above_poverty_65 = !! census_sumSelect("B17001e", c(44, 45, 58, 59)),
+              Above_poverty_35_64 = !! census_sum_select("B17001e", c(41, 42, 43, 55, 56, 57)),
+              Above_poverty_65 = !! census_sum_select("B17001e", c(44, 45, 58, 59)),
               Prop_18_34 = Above_poverty_18_34/(Above_poverty_18_34 + !! census_sum_select("B17001e", c(10, 11, 24, 25))),
               Prop_35_64 = Above_poverty_35_64/(Above_poverty_35_64 + !! census_sum_select("B17001e", c(12, 13, 14, 26, 27, 28))),
               Prop_65 = Above_poverty_65/(Above_poverty_65 + !! census_sum_select("B17001e", c(15, 16, 29, 30)))) %>%
+    dplyr::select(-starts_with("Above")) %>%
     arrange(desc(Prop_18_34)) %>%
     mutate(Rank_18_34 = row_number()) %>%
     arrange(desc(Prop_35_64)) %>%
     mutate(Rank_35_64 = row_number()) %>%
-    arrange(desc(Employed_65_over)) %>%
-    mutate(Rank_employed_65_over = row_number()) %>%
-    unite(`16-19`, Employed_16_19, Rank_employed_16_19) %>%
-    unite(`20-34`, Employed_20_34, Rank_employed_20_34) %>%
-    unite(`35-64`, Employed_35_64, Rank_employed_35_64) %>%
-    unite(`65+`, Employed_65_over, Rank_employed_65_over) %>%
-    gather(`16-19`:`65+`, key = "EQUITY_GROUP", value = "Measure_rank") %>%
+    arrange(desc(Prop_65)) %>%
+    mutate(Rank_65 = row_number()) %>%
+    unite(`18-34`, Prop_18_34, Rank_18_34) %>%
+    unite(`35-64`, Prop_35_64, Rank_35_64) %>%
+    unite(`65+`, Prop_65, Rank_65) %>%
+    gather(`18-34`:`65+`, key = "EQUITY_GROUP", value = "Measure_rank") %>%
     mutate(EQUITY_CHARACTERISTIC = "Age",
-           TOPIC_AREA = "Employment:equity group population ratio") %>%
+           TOPIC_AREA = "At/above poverty:equity group population ratio") %>%
     separate(Measure_rank, into = c("Measure", "Rank of measure"), sep = "_") %>%
     gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE") %>%
     mutate(YEAR = str_replace(df_name, pattern = "acs", replacement = ""))
@@ -425,41 +427,36 @@ poverty_by_age <- function(df) {
   
 }
 
-# employment_by_age(acs2005)
-# employment_by_age(acs2006)
-employment_by_age(acs2007)
-employment_by_age(acs2008)
-employment_by_age(acs2009)
-employment_by_age(acs2010)
-employment_by_age(acs2011)
-employment_by_age(acs2012)
-employment_by_age(acs2013)
-employment_by_age(acs2014)
-employment_by_age(acs2015)
-employment_by_age(acs2016)
-employment_by_age(acs2017)
-employment_by_age(acs2018)
+poverty_by_age(acs2005)
+poverty_by_age(acs2006)
+poverty_by_age(acs2007)
+poverty_by_age(acs2008)
+poverty_by_age(acs2009)
+poverty_by_age(acs2010)
+poverty_by_age(acs2011)
+poverty_by_age(acs2012)
+poverty_by_age(acs2013)
+poverty_by_age(acs2014)
+poverty_by_age(acs2015)
+poverty_by_age(acs2016)
+poverty_by_age(acs2017)
+poverty_by_age(acs2018)
 
-e_by_age_df <- rbind(acs2005_e_by_age,
-                     acs2006_e_by_age,
-                     acs2007_e_by_age,
-                     acs2008_e_by_age,
-                     acs2009_e_by_age,
-                     acs2010_e_by_age,
-                     acs2011_e_by_age,
-                     acs2012_e_by_age,
-                     acs2013_e_by_age,
-                     acs2014_e_by_age,
-                     acs2015_e_by_age,
-                     acs2016_e_by_age,
-                     acs2017_e_by_age,
-                     acs2018_e_by_age)
+poverty_by_age_df <- rbind(acs2005_p_by_age,
+                           acs2006_p_by_age,
+                           acs2007_p_by_age,
+                           acs2008_p_by_age,
+                           acs2009_p_by_age,
+                           acs2010_p_by_age,
+                           acs2011_p_by_age,
+                           acs2012_p_by_age,
+                           acs2013_p_by_age,
+                           acs2014_p_by_age,
+                           acs2015_p_by_age,
+                           acs2016_p_by_age,
+                           acs2017_p_by_age,
+                           acs2018_p_by_age)
 
-
-acs2009 %>%
-  select(starts_with("B17001"))
-
-names_05 <- enframe(names(acs2005))
 ```
 
 # Homeownership by age
@@ -477,7 +474,7 @@ tenure_by_age <- function(df) {
     transmute(CBSA = CBSA,
               Owner_occ_15_24 = B25007e3/(B25007e3 + B25007e13),
               Owner_occ_25_34 = B25007e4/(B25007e4 + B25007e14),
-              Owner_occ_35_64 = (!! census_sum("B25007", 5, 8, 1))/(!! census_sum("B25007", 5, 8, 1) + !! census_sum("B25007", 15, 18, 1)),
+              Owner_occ_35_64 = (!! census_sum("B25007e", 5, 8, 1))/(!! census_sum("B25007e", 5, 8, 1) + !! census_sum("B25007e", 15, 18, 1)),
               Owner_occ_65_over = (B25007e9 + B25007e10 + B25007e11)/(B25007e9 + B25007e10 + B25007e11 + B25007e19 + B25007e20 + B25007e21)) %>%
     arrange(desc(Owner_occ_15_24)) %>%
     mutate(Rank_owner_occ_15_24 = row_number()) %>%

@@ -125,7 +125,7 @@ disability_vars <- function(df) {
   
   if(df_year < 2005) {
     
-    print("Not a valid year for the function.  Function current as of December 2019.")
+    print("Not a valid year for the function.  Function current as of January 2020.")
     
   } else if (df_year >= 2009) {
     
@@ -188,7 +188,7 @@ disability_vars <- function(df) {
       mutate(Odds_employ_no_disability = Employed_no_disability/(1-Employed_no_disability), # Create odds variable (See "OddsRatioDemo.xlsx for more info")
              Odds_employ_disability = Employed_disability/(1-Employed_disability), # Create odds variable
              Employ_disparity = Odds_employ_disability/Odds_employ_no_disability) %>% # Ratio of odds of being employed (Disability:No disability)
-      dplyr::select(-Odds_employ_no_disability, -Odds_employ_disability, -Prop_above_poverty_no_disability, -Prop_above_poverty_disability) %>%
+      dplyr::select(-starts_with("Odds"), -starts_with("Prop")) %>%
       arrange(desc(Employed_disability)) %>%
       mutate(Rank_employed_disability = dplyr::row_number()) %>%
       arrange(desc(Employed_no_disability)) %>%
@@ -204,10 +204,10 @@ disability_vars <- function(df) {
 
   # Poverty status by disability 
       df_poverty <- df_pared %>%
-        mutate(Odds_no_poverty_no_disability = Prop_above_poverty_no_disability/(1-Prop_above_poverty_no_disability), # Create odds variable (See "OddsRatioDemo.xlsx for more info")
+        mutate(Odds_no_poverty_no_disability = Prop_above_poverty_no_disability/(1-Prop_above_poverty_no_disability), 
                Odds_no_poverty_disability = Prop_above_poverty_disability/(1-Prop_above_poverty_disability), # Create odds variable
-               Poverty_disparity = Odds_no_poverty_disability/Odds_no_poverty_no_disability) %>% # Ratio of odds of being above poverty (disability:no disability)
-        dplyr::select(-Odds_no_poverty_no_disability, -Odds_no_poverty_disability, -Employed_disability, -Employed_no_disability) %>%
+               Poverty_disparity = Odds_no_poverty_disability/Odds_no_poverty_no_disability) %>%
+        dplyr::select(-starts_with("Odds"), -starts_with("Employed")) %>%
         arrange(desc(Prop_above_poverty_disability)) %>% # Higher rates of no poverty amongst those with disability = better
         mutate(Rank_no_poverty_disability = dplyr::row_number()) %>%
         arrange(desc(Prop_above_poverty_no_disability)) %>% # Higher rates of no poverty amongst those with no disabilities = better
@@ -287,6 +287,185 @@ disability_df <- rbind(acs2005_disability_vars,
                        acs2018_disability_vars)
 
 #write_csv(disability_df, "")
+```
+
+```{r}
+#' Employment status and poverty status by disability for 25 largest CBSAs in US from 2005-2018
+#'
+#' Using separate 1-year ACS summary files, calculates employment and poverty status by disability
+#'
+#' @param df dataframe named in the format "acsXXXX" where XXXX is the year and containing 1-year ACS summary file data for a year 2005 or later; in this case from local, custom-processed files in N:/CommDev/Research/Research/Census
+#'
+#' @return dataframe appended with "_disability_vars" containing employment status and poverty status by disability for 26 US metros for 2005-2018
+#' 
+#' @examples
+#' disability_vars(acs2009)
+#'
+#' @export 
+
+disability_vars <- function(df) {
+  
+  df_name <- deparse(substitute(df))
+  
+  df_year <- as.numeric(substr(df_name, 4, 7))
+  
+  if(df_year < 2005) {
+    
+    print("Not a valid year for the function.  Function current as of January 2020.")
+    
+  } else if (df_year >= 2009) {
+    
+    # Years 2009 and later use different table codes than 2007-2008 or 2005-2006
+    df_pared <- acs2009 %>%
+      dplyr::select(CBSA, starts_with("B18120"), starts_with("B18130")) %>%
+      transmute(CBSA = CBSA,
+                Employed_disability = B18120e4/(B18120e4 + B18120e13 + B18120e22), # Denom = total population with disability
+                Employed_no_disability = B18120e11/(B18120e11 + B18120e20 + B18120e29), # Denom = total population with no disability
+                Above_poverty_disability = !! census_sum("B18130e", 5, 40, 7),
+                Above_poverty_no_disability = !! census_sum("B18130e", 8, 43, 7),
+                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + !! census_sum("B18130e", 4, 39, 7)),
+                Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + !! census_sum("B18130e", 7, 42, 7))) %>%
+      dplyr::select(-starts_with("Above"))
+    
+    invisible(df_pared)
+    
+  } else if (df_year <= 2007 & df_year >= 2005) {
+    
+    # Years 2005 and 2006
+    df_pared <- df %>%
+      dplyr::select(CBSA, starts_with("B18020e"), starts_with("B18030")) %>%
+      transmute(CBSA = CBSA,
+                Employed_disability = (B18020e5 + B18020e8 + B18020e12 + B18020e15)/B18020e2, # Num = males and females of two different age groups that have 1+ disabilities and are employed
+                Employed_no_disability = (B18020e20 + B18020e23 + B18020e27 + B18020e30)/B18020e17,
+                Prop_above_poverty_disability = (!! census_sum("B18030e", 6, 15, 3) + B18030e19 + B18030e22 + B18030e25 + B18030e28)/B18030e2,
+                Prop_above_poverty_no_disability = (!! census_sum("B18030e", 33, 42, 3) + !! census_sum("B18030e", 46, 55, 3))/B18030e29)
+    
+    invisible(df_pared)
+    
+  }
+  
+  else if (df_year == 2008) {
+    
+    
+    df_pared <- df %>%
+      dplyr::select(CBSA, starts_with("B18120"), starts_with("B18130")) %>%
+      transmute(CBSA = CBSA,
+                Employed_disability = (B18120e4 + B18120e11)/(B18120e3 + B18120e10),
+                Employed_no_disability = (B18120e7 + B18120e14)/(B18120e6 + B18120e13),
+                Above_poverty_disability = !! census_sum("B18130e", 5, 40, 7),
+                Above_poverty_no_disability = !! census_sum("B18130e", 8, 43, 7),
+                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + !! census_sum("B18130e", 4, 39, 7)),
+                Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + !! census_sum("B18130e", 7, 42, 7))) %>%
+      dplyr::select(-starts_with("Above"))
+    
+    invisible(df_pared)
+    
+  }
+  
+  else {
+    
+    print("Missing data for input.")
+  }
+  
+  # Same calculation process for all years
+  
+  # Employment and poverty status by disability
+  df_disparity <- df_pared %>%            
+    transmute(CBSA = CBSA,
+              Odds_employ_no_disability = Employed_no_disability/(1-Employed_no_disability), # Create odds variable (See "OddsRatioDemo.xlsx for more info")
+              Odds_employ_disability = Employed_disability/(1-Employed_disability), # Create odds variable
+              Employ_disparity = Odds_employ_disability/Odds_employ_no_disability,
+              Odds_no_poverty_no_disability = Prop_above_poverty_no_disability/(1-Prop_above_poverty_no_disability), 
+              Odds_no_poverty_disability = Prop_above_poverty_disability/(1-Prop_above_poverty_disability), # Create odds variable
+              Poverty_disparity = Odds_no_poverty_disability/Odds_no_poverty_no_disability) %>% # Ratio of odds of being employed (Disability:No disability)
+    dplyr::select(-starts_with("Odds")) %>%
+    arrange(CBSA) %>% # Lower odds of no poverty for disability relative to no disability = wider disparity
+    mutate(Index = dplyr::row_number())
+  
+  df_employ_pov <- df_pared %>%
+    arrange(desc(CBSA)) %>%
+    mutate(Index = dplyr::row_number())
+  
+  
+  # Get rank of each column (descending order, largest # = highest rank)
+  ep_ranks <- as.data.frame(purrr::map(-df_employ_pov, rank))
+  colnames(ep_ranks) <- paste(colnames(df_employ_pov), "rank", sep = "_")
+  
+  ep_full <- full_join(df_employ_pov, ep_ranks, by = c("Index" = "CBSA_rank"))
+  
+  # Get rank of disparities (ascending/default order, smallest # = worst disparity and highest rank)
+  disparity_ranks <- as.data.frame(purrr::map(df_disparity, rank))
+  colnames(disparity_ranks) <- paste(colnames(df_disparity), "rank", sep = "_")
+  
+  disparity_full <- full_join(df_disparity, disparity_ranks, by = c("Index" = "CBSA_rank"))
+  
+  ep_disparity <- full_join(ep_full, disparity_full, by = "CBSA")
+  
+  # Re-structure/tidy df        
+  disability <- ep_disparity %>%
+    dplyr::select(-starts_with("Index"), -Employ_disparity, -Poverty_disparity) %>%
+    gather(starts_with("Employ"), starts_with("P"), key = "Topic_group", value = "VALUE") %>%
+    mutate(Topic_employ = str_detect(Topic_group, "Employ"),
+           Group_no_disability = str_detect(Topic_group, "no"),
+           Rank = str_detect(Topic_group, "rank"),
+           Disparity = str_detect(Topic_group, "disparity"),
+           TOPIC_AREA = ifelse(Topic_employ == "TRUE", "Employment:equity group population ratio", "At/above poverty:equity group population ratio"),
+           EQUITY_GROUP = ifelse(Group_no_disability == "TRUE", "No disability", "One or more disabilities"),
+           MEASURE = ifelse(Rank == "TRUE" & Disparity == "TRUE", "Rank of disparity",
+                            ifelse(Rank == "TRUE" & Disparity == "FALSE", "Rank of measure", "Measure")),
+           YEAR = str_replace(df_name, pattern = "acs", replacement = "")) %>%
+    dplyr::select(-Topic_employ, -Group_no_disability, -Rank, -Disparity, -Topic_group)
+  
+  assign(paste(df_name, "disability_vars", sep = "_"), disability, envir = .GlobalEnv)
+}
+
+# employment_by_disability(acs2009)
+# 
+# df_list <- list(acs2009,
+#                 acs2010,
+#                 acs2011,
+#                 acs2012,
+#                 acs2013,
+#                 acs2014,
+#                 acs2015,
+#                 acs2016,
+#                 acs2017,
+#                 acs2018)
+# 
+# e_by_d <- purrr::map(df_list, employment_by_disability)
+# 
+# names(e_by_d) <- 2009:2018
+# 
+# list2env(e_by_d ,.GlobalEnv)
+
+disability_vars(acs2005)
+disability_vars(acs2006)
+disability_vars(acs2007)
+disability_vars(acs2008)
+disability_vars(acs2009)
+disability_vars(acs2010)
+disability_vars(acs2011)
+disability_vars(acs2012)
+disability_vars(acs2013)
+disability_vars(acs2014)
+disability_vars(acs2015)
+disability_vars(acs2016)
+disability_vars(acs2017)
+disability_vars(acs2018)
+
+disability_df <- rbind(acs2005_disability_vars,
+                       acs2006_disability_vars,
+                       acs2008_disability_vars,
+                       acs2009_disability_vars,
+                       acs2010_disability_vars,
+                       acs2011_disability_vars,
+                       acs2012_disability_vars,
+                       acs2013_disability_vars,
+                       acs2014_disability_vars,
+                       acs2015_disability_vars,
+                       acs2016_disability_vars,
+                       acs2017_disability_vars,
+                       acs2018_disability_vars)
 ```
 
 ```{r}

@@ -379,21 +379,21 @@ disability_vars <- function(df) {
               Odds_no_poverty_disability = Prop_above_poverty_disability/(1-Prop_above_poverty_disability), # Create odds variable
               Poverty_disparity = Odds_no_poverty_disability/Odds_no_poverty_no_disability) %>% # Ratio of odds of being employed (Disability:No disability)
     dplyr::select(-starts_with("Odds")) %>%
-    arrange(CBSA) %>% # Lower odds of no poverty for disability relative to no disability = wider disparity
+    arrange(CBSA) %>% # ex. CBSA 47900 == Index 26
     mutate(Index = dplyr::row_number())
   
   df_employ_pov <- df_pared %>%
     arrange(desc(CBSA)) %>%
-    mutate(Index = dplyr::row_number())
+    mutate(Index = dplyr::row_number()) # ex. CBSA 47900 == Index 1
   
   
-  # Get rank of each column (descending order, largest # = highest rank)
+  # Get rank of each column (descending order, largest # = highest rank) --> CBSA_rank 1 is CBSA 47900 (largest #)
   ep_ranks <- as.data.frame(purrr::map(-df_employ_pov, rank))
   colnames(ep_ranks) <- paste(colnames(df_employ_pov), "rank", sep = "_")
   
   ep_full <- full_join(df_employ_pov, ep_ranks, by = c("Index" = "CBSA_rank"))
   
-  # Get rank of disparities (ascending/default order, smallest # = worst disparity and highest rank)
+  # Get rank of disparities (ascending/default order, smallest # = worst disparity and highest rank) --> CBSA_rank 1 is CBSA 12060 (smallest #)
   disparity_ranks <- as.data.frame(purrr::map(df_disparity, rank))
   colnames(disparity_ranks) <- paste(colnames(df_disparity), "rank", sep = "_")
   
@@ -411,6 +411,7 @@ disability_vars <- function(df) {
            Disparity = str_detect(Topic_group, "disparity"),
            TOPIC_AREA = ifelse(Topic_employ == "TRUE", "Employment:equity group population ratio", "At/above poverty:equity group population ratio"),
            EQUITY_GROUP = ifelse(Group_no_disability == "TRUE", "No disability", "One or more disabilities"),
+           EQUITY_CHARACTERISTIC = "Disability status",
            MEASURE = ifelse(Rank == "TRUE" & Disparity == "TRUE", "Rank of disparity",
                             ifelse(Rank == "TRUE" & Disparity == "FALSE", "Rank of measure", "Measure")),
            YEAR = str_replace(df_name, pattern = "acs", replacement = "")) %>%
@@ -502,7 +503,7 @@ employment_by_age <- function(df) {
   
   df_year <- as.numeric(substr(df_name, 4, 7))
   
-  df_tidy <- df %>%
+  df_tidy <- acs2009 %>%
     dplyr::select(CBSA, starts_with("B23001")) %>%
     transmute(CBSA = CBSA,
               Employed_16_19 = (!! census_sum_select("B23001e", c(5, 7, 91, 93)))/(B23001e3 + B23001e89),
@@ -518,18 +519,22 @@ employment_by_age <- function(df) {
   
   employment_full <- full_join(df_tidy, employment_ranks, by = c("Index" = "CBSA_rank"))
   
+  # Re-structure/tidy df
   employment <- employment_full %>%
     dplyr::select(-starts_with("Index")) %>%
-    unite(`16-19`, Employed_16_19, Employed_16_19_rank) %>%
-    unite(`20-34`, Employed_20_34, Employed_20_34_rank) %>%
-    unite(`35-64`, Employed_35_64, Employed_35_64_rank) %>%
-    unite(`65+`, Employed_65_over, Employed_65_over_rank) %>%
-    gather(`16-19`:`65+`, key = "EQUITY_GROUP", value = "Measure_rank") %>%
-    mutate(EQUITY_CHARACTERISTIC = "Age",
-           TOPIC_AREA = "Employment:equity group population ratio") %>%
-    separate(Measure_rank, into = c("Measure", "Rank of measure"), sep = "_") %>%
-    gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE") %>%
-    mutate(YEAR = str_replace(df_name, pattern = "acs", replacement = ""))
+    gather(starts_with("Employ"), key = "Topic_group", value = "VALUE") %>%
+    mutate(Rank = str_detect(Topic_group, "rank"),
+           EQUITY_GROUP = str_extract_all(Topic_group, paste(c("16_19","20_34","35_64","65"), collapse = "|")),
+           EQUITY_CHARACTERISTIC = "Age",
+           TOPIC_AREA = "Employment:equity group population ratio",
+           MEASURE = ifelse(Rank == "TRUE", "Rank of measure", "Measure"),
+           EQUITY_GROUP = recode(as.character(EQUITY_GROUP), 
+                                 `16_19` = "16-19",
+                                 `20_34` = "20-34",
+                                 `35_64` = "35-64",
+                                 `65` = "65+"),
+           YEAR = str_replace(df_name, pattern = "acs", replacement = "")) %>%
+    dplyr::select(-Topic_group, -Rank)
   
   assign(paste(df_name, "e_by_age", sep = "_"), employment, envir = .GlobalEnv)
   
@@ -726,7 +731,8 @@ tenure_by_age_df <- rbind(acs2005_tenure_by_age,
 # Gross rent as a percentage of hh income in last 12 months by age (B25072) (2005-2018)
 
 ```{r}
-burdened_rent1 <- acs2009 %>%
+
+df_tidy <- acs2009 %>%
   dplyr::select(CBSA, starts_with("B25072")) %>%
   transmute(CBSA = CBSA,
             LT20_15_24 = B25072e3/B25072e2,
@@ -757,7 +763,15 @@ burdened_rent1 <- acs2009 %>%
   arrange(desc(CBSA)) %>%
   mutate(Index = row_number())
 
-burdened_rent_ranks <- as.data.frame(purrr::map(-burdened_rent1, rank))
+# Get rank of each column (descending order, largest % = highest rank)
+rent_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
+
+colnames(rent_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
+  
+rent_full <- full_join(df_tidy, rent_ranks, by = c("Index" = "CBSA_rank"))
+
+rent <- rent_full %>%
+  dplyr::select(-starts_with("Index"))
 ```
 
 

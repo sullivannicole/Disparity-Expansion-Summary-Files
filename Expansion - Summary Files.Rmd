@@ -404,7 +404,7 @@ disability_vars <- function(df) {
   # Re-structure/tidy df        
   disability <- ep_disparity %>%
     dplyr::select(-starts_with("Index"), -Employ_disparity, -Poverty_disparity) %>%
-    gather(starts_with("Employ"), starts_with("P"), key = "Topic_group", value = "VALUE") %>%
+    gather(key = "Topic_group", value = "VALUE", -one_of("CBSA")) %>%
     mutate(Topic_employ = str_detect(Topic_group, "Employ"),
            Group_no_disability = str_detect(Topic_group, "no"),
            Rank = str_detect(Topic_group, "rank"),
@@ -522,7 +522,7 @@ employment_by_age <- function(df) {
   # Re-structure/tidy df
   employment <- employment_full %>%
     dplyr::select(-starts_with("Index")) %>%
-    gather(starts_with("Employ"), key = "Topic_group", value = "VALUE") %>%
+    gather(key = "Topic_group", value = "VALUE", -one_of("CBSA")) %>%
     mutate(Rank = str_detect(Topic_group, "rank"),
            EQUITY_GROUP = str_extract_all(Topic_group, paste(c("16_19","20_34","35_64","65"), collapse = "|")),
            EQUITY_CHARACTERISTIC = "Age",
@@ -732,46 +732,84 @@ tenure_by_age_df <- rbind(acs2005_tenure_by_age,
 
 ```{r}
 
-df_tidy <- acs2009 %>%
-  dplyr::select(CBSA, starts_with("B25072")) %>%
-  transmute(CBSA = CBSA,
-            LT20_15_24 = B25072e3/B25072e2,
-            B20_24_15_24 = B25072e4/B25072e2,
-            B25_29_15_24 = B25072e5/B25072e2,
-            B30_34_15_24 = B25072e6/B25072e2,
-            GT35_15_24 = B25072e7/B25072e2,
-            LT20_25_34 = B25072e10/B25072e9,
-            B20_24_25_34 = B25072e11/B25072e9,
-            B25_29_25_34 = B25072e12/B25072e9,
-            B30_34_25_34 = B25072e13/B25072e9,
-            GT35_25_34 = B25072e14/B25072e9,
-            LT20_35_64 = B25072e17/B25072e16,
-            B20_24_35_64 = B25072e18/B25072e16,
-            B25_29_35_64 = B25072e19/B25072e16,
-            B30_34_35_64 = B25072e20/B25072e16,
-            GT35_35_64 = B25072e21/B25072e16,
-            LT20_65 = B25072e24/B25072e23,
-            B20_24_65 = B25072e25/B25072e23,
-            B25_29_65 = B25072e26/B25072e23,
-            B30_35_65 = B25072e27/B25072e23,
-            GT35_65 = B25072e28/B25072e23,
-            LT20 = (!! census_sum("B25072e", 3, 24, 7))/B25072e1,
-            B20_24 = (!! census_sum("B25072e", 4, 25, 7))/B25072e1,
-            B25_29 = (!! census_sum("B25072e", 5, 26, 7))/B25072e1,
-            B30_34 = (!! census_sum("B25072e", 6, 27, 7))/B25072e1,
-            GT35 = (!! census_sum("B25072e", 7, 27, 7))/B25072e1) %>%
-  arrange(desc(CBSA)) %>%
-  mutate(Index = row_number())
-
-# Get rank of each column (descending order, largest % = highest rank)
-rent_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
-
-colnames(rent_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
+rent_burden_by_age <- function(df) {
   
-rent_full <- full_join(df_tidy, rent_ranks, by = c("Index" = "CBSA_rank"))
+  df_name <- deparse(substitute(df))
+  
+  df_year <- as.numeric(substr(df_name, 4, 7))
+  
+  df_tidy <- df %>%
+    dplyr::select(CBSA, starts_with("B25072")) %>%
+    transmute(CBSA = CBSA,
+              B15_24 = (B25072e6 + B25072e7)/B25072e2,
+              B25_34 = (B25072e13 + B25072e14)/B25072e9,
+              B35_64 = (B25072e20 + B25072e21)/B25072e16,
+              B35_65 = (B25072e27 + B25072e28)/B25072e23,
+              LT20 = (!! census_sum("B25072e", 3, 24, 7))/B25072e1,
+              B20_24 = (!! census_sum("B25072e", 4, 25, 7))/B25072e1,
+              B25_29 = (!! census_sum("B25072e", 5, 26, 7))/B25072e1,
+              B30_34 = (!! census_sum("B25072e", 6, 27, 7))/B25072e1,
+              GT35 = (!! census_sum("B25072e", 7, 27, 7))/B25072e1) %>%
+    arrange(desc(CBSA)) %>%
+    mutate(Index = row_number())
+  
+  # Get rank of each column (descending order, largest % = highest rank)
+  rent_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
+  
+  colnames(rent_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
+  
+  rent_full <- full_join(df_tidy, rent_ranks, by = c("Index" = "CBSA_rank"))
+  
+  rent <- rent_full %>%
+    dplyr::select(-starts_with("Index")) %>%
+    gather(key = "Topic_group", value = "VALUE", -one_of("CBSA")) %>%
+    mutate(Rank = str_detect(Topic_group, "rank"),
+           EQUITY_GROUP = str_extract_all(Topic_group, paste(c("15_24","25_34","35_64","65"), collapse = "|")),
+           EQUITY_CHARACTERISTIC = "Age",
+           TOPIC_AREA = "Housing cost burden for renters:equity group population ratio",
+           MEASURE = ifelse(Rank == "TRUE", "Rank of measure", "Measure"),
+           EQUITY_GROUP = recode(as.character(EQUITY_GROUP), 
+                                 `15_24` = "15-24",
+                                 `25_34` = "25-34",
+                                 `35_64` = "35-64",
+                                 `65` = "65+",
+                                 `character(0)` = "Total"),
+           YEAR = str_replace(df_name, pattern = "acs", replacement = "")) %>%
+    dplyr::select(-Topic_group, -Rank)
+  
+  assign(paste(df_name, "rburden_by_age", sep = "_"), rent, envir = .GlobalEnv)
+  
+}
 
-rent <- rent_full %>%
-  dplyr::select(-starts_with("Index"))
+rent_burden_by_age(acs2005)
+rent_burden_by_age(acs2006)
+rent_burden_by_age(acs2007)
+rent_burden_by_age(acs2008)
+rent_burden_by_age(acs2009)
+rent_burden_by_age(acs2010)
+rent_burden_by_age(acs2011)
+rent_burden_by_age(acs2012)
+rent_burden_by_age(acs2013)
+rent_burden_by_age(acs2014)
+rent_burden_by_age(acs2015)
+rent_burden_by_age(acs2016)
+rent_burden_by_age(acs2017)
+rent_burden_by_age(acs2018)
+
+rburden_by_age <- rbind(acs2005_rburden_by_age,
+                        acs2006_rburden_by_age,
+                        acs2007_rburden_by_age,
+                        acs2008_rburden_by_age,
+                        acs2009_rburden_by_age,
+                        acs2010_rburden_by_age,
+                        acs2011_rburden_by_age,
+                        acs2012_rburden_by_age,
+                        acs2013_rburden_by_age,
+                        acs2014_rburden_by_age,
+                        acs2015_rburden_by_age,
+                        acs2016_rburden_by_age,
+                        acs2017_rburden_by_age,
+                        acs2018_rburden_by_age)
 ```
 
 

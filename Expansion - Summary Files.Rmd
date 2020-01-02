@@ -89,7 +89,7 @@ census_sum_select <- function(table, indices) {
   
 }
 
-sumTest("B17001e", c(37, 38, 54, 55))
+paste(rep("B17001e"), seq(from = 54, to = 107, by = c(2, 5), sep = "", collapse = " + "))
 ```
 
 # Employment status and poverty status by disability (2005-2018)
@@ -139,7 +139,7 @@ disability_vars <- function(df) {
                 Above_poverty_no_disability = !! census_sum("B18130e", 8, 43, 7),
                 Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + !! census_sum("B18130e", 4, 39, 7)),
                 Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + !! census_sum("B18130e", 7, 42, 7))) %>%
-      dplyr::select(-Above_poverty_disability, -Above_poverty_no_disability)
+      dplyr::select(-starts_with("Above"))
     
     invisible(df_pared)
     
@@ -170,7 +170,7 @@ disability_vars <- function(df) {
                 Above_poverty_no_disability = !! census_sum("B18130e", 8, 43, 7),
                 Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + !! census_sum("B18130e", 4, 39, 7)),
                 Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + !! census_sum("B18130e", 7, 42, 7))) %>%
-      dplyr::select(-Above_poverty_disability, -Above_poverty_no_disability)
+      dplyr::select(-starts_with("Above"))
     
     invisible(df_pared)
     
@@ -326,10 +326,10 @@ employment_by_age <- function(df) {
   df_tidy <- df %>%
     dplyr::select(CBSA, starts_with("B23001")) %>%
     transmute(CBSA = CBSA,
-              Employed_16_19 = (B23001e5 + B23001e7 + B23001e91 + B23001e93)/(B23001e3 + B23001e89),
-              Employed_20_34 = (B23001e12 + B23001e14 + B23001e19 + B23001e21 + B23001e26 + B23001e28 + B23001e33 + B23001e35 + B23001e98 + B23001e100 + B23001e105 + B23001e107 + B23001e112 + B23001e114 + B23001e119 + B23001e121)/(!! census_sum("B23001e", 10, 31, 7) + !! census_sum("B23001e", 96, 117, 7)),
-              Employed_35_64 = (B23001e40 + B23001e42 + B23001e47 + B23001e49 + B23001e54 + B23001e56 + B23001e61 + B23001e63 + B23001e68 + B23001e70 + B23001e126 + B23001e128 + B23001e133 + B23001e135 + B23001e140 + B23001e142 + B23001e147 + B23001e149 + B23001e154 + B23001e156)/(B23001e38 + B23001e45 + B23001e52 + B23001e59 + B23001e66 + B23001e124 + B23001e131 + B23001e138 + B23001e145 + B23001e152),
-              Employed_65_over = (B23001e75 + B23001e80 + B23001e85 + B23001e161 + B23001e166 + B23001e171)/(B23001e73 + B23001e78 + B23001e83 + B23001e159 + B23001e164 + B23001e169)) %>%
+              Employed_16_19 = (!! census_sum_select("B23001e", c(5, 7, 91, 93)))/(B23001e3 + B23001e89),
+              Employed_20_34 = (!! census_sum_select("B23001e", c(12, 14, 19, 21, 26, 28, 33, 35, 98, 100, 105, 107, 112, 114, 119, 121)))/(!! census_sum("B23001e", 10, 31, 7) + !! census_sum("B23001e", 96, 117, 7)),
+              Employed_35_64 = (!! census_sum_select("B23001e", c(40, 42, 47, 49, 54, 56, 61, 63, 68, 70, 126, 128, 133, 135, 140, 142, 147, 149, 154, 156)))/(!! census_sum("B23001e", 38, 66, 7) +  !! census_sum("B23001e", 124, 152, 7)),
+              Employed_65_over = (!! census_sum_select("B23001e", c(75, 80, 85, 161, 166, 171)))/(!! census_sum_select("B23001e", c(73, 78, 83, 159, 164, 169)))) %>%
     arrange(desc(Employed_16_19)) %>%
     mutate(Rank_employed_16_19 = row_number()) %>%
     arrange(desc(Employed_20_34)) %>%
@@ -459,7 +459,9 @@ poverty_by_age_df <- rbind(acs2005_p_by_age,
 
 ```
 
-# Homeownership by age
+# Homeownership by age (2005-2018)
+
+Disparity and rank of disparity aren't calculated.  No "typical" or "accepted" reference group for age exists.
 
 ```{r}
 
@@ -475,19 +477,22 @@ tenure_by_age <- function(df) {
               Owner_occ_15_24 = B25007e3/(B25007e3 + B25007e13),
               Owner_occ_25_34 = B25007e4/(B25007e4 + B25007e14),
               Owner_occ_35_64 = (!! census_sum("B25007e", 5, 8, 1))/(!! census_sum("B25007e", 5, 8, 1) + !! census_sum("B25007e", 15, 18, 1)),
-              Owner_occ_65_over = (B25007e9 + B25007e10 + B25007e11)/(B25007e9 + B25007e10 + B25007e11 + B25007e19 + B25007e20 + B25007e21)) %>%
-    arrange(desc(Owner_occ_15_24)) %>%
-    mutate(Rank_owner_occ_15_24 = row_number()) %>%
-    arrange(desc(Owner_occ_25_34)) %>%
-    mutate(Rank_owner_occ_25_34 = row_number()) %>%
-    arrange(desc(Owner_occ_35_64)) %>%
-    mutate(Rank_owner_occ_35_64 = row_number()) %>%
-    arrange(desc(Owner_occ_65_over)) %>%
-    mutate(Rank_owner_occ_65_over = row_number()) %>%
-    unite(`15-24`, Owner_occ_15_24, Rank_owner_occ_15_24) %>%
-    unite(`25-34`, Owner_occ_25_34, Rank_owner_occ_25_34) %>%
-    unite(`35-64`, Owner_occ_35_64, Rank_owner_occ_35_64) %>%
-    unite(`65+`, Owner_occ_65_over, Rank_owner_occ_65_over) %>%
+              Owner_occ_65_over = (B25007e9 + B25007e10 + B25007e11)/(!! census_sum_select("B25007e", c(9, 10, 11, 19, 20, 21)))) %>%
+    arrange(desc(CBSA)) %>%
+    mutate(Index = row_number())
+  
+  # Get rank of each column (descending order, largest = highest rank)
+  tenure_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
+  colnames(tenure_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
+  
+  tenure_full <- full_join(tenure_05, tenure_ranks, by = c("Index" = "CBSA_rank"))
+  
+  tenure <- tenure_full %>%
+    dplyr::select(-starts_with("Index")) %>%
+    unite(`15-24`, Owner_occ_15_24, Owner_occ_15_24_rank) %>%
+    unite(`25-34`, Owner_occ_25_34, Owner_occ_25_34_rank) %>%
+    unite(`35-64`, Owner_occ_35_64, Owner_occ_35_64_rank) %>%
+    unite(`65+`, Owner_occ_65_over, Owner_occ_65_over_rank) %>%
     gather(`15-24`:`65+`, key = "EQUITY_GROUP", value = "Measure_rank") %>%
     mutate(EQUITY_CHARACTERISTIC = "Age",
            TOPIC_AREA = "Owner-occupied units:equity group population ratio") %>%
@@ -495,7 +500,7 @@ tenure_by_age <- function(df) {
     gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE") %>%
     mutate(YEAR = str_replace(df_name, pattern = "acs", replacement = ""))
   
-  assign(paste(df_name, "tenure_by_age", sep = "_"), df_tidy, envir = .GlobalEnv)
+  assign(paste(df_name, "tenure_by_age", sep = "_"), tenure, envir = .GlobalEnv)
   
 }
 
@@ -530,4 +535,42 @@ tenure_by_age_df <- rbind(acs2005_tenure_by_age,
                           acs2018_tenure_by_age)
 
 ```
+
+# Gross rent as a percentage of hh income in last 12 months by age (B25072) (2005-2018)
+
+```{r}
+burdened_rent1 <- acs2009 %>%
+  dplyr::select(CBSA, starts_with("B25072")) %>%
+  transmute(CBSA = CBSA,
+            LT20_15_24 = B25072e3/B25072e2,
+            B20_24_15_24 = B25072e4/B25072e2,
+            B25_29_15_24 = B25072e5/B25072e2,
+            B30_34_15_24 = B25072e6/B25072e2,
+            GT35_15_24 = B25072e7/B25072e2,
+            LT20_25_34 = B25072e10/B25072e9,
+            B20_24_25_34 = B25072e11/B25072e9,
+            B25_29_25_34 = B25072e12/B25072e9,
+            B30_34_25_34 = B25072e13/B25072e9,
+            GT35_25_34 = B25072e14/B25072e9,
+            LT20_35_64 = B25072e17/B25072e16,
+            B20_24_35_64 = B25072e18/B25072e16,
+            B25_29_35_64 = B25072e19/B25072e16,
+            B30_34_35_64 = B25072e20/B25072e16,
+            GT35_35_64 = B25072e21/B25072e16,
+            LT20_65 = B25072e24/B25072e23,
+            B20_24_65 = B25072e25/B25072e23,
+            B25_29_65 = B25072e26/B25072e23,
+            B30_35_65 = B25072e27/B25072e23,
+            GT35_65 = B25072e28/B25072e23,
+            LT20 = (!! census_sum("B25072e", 3, 24, 7))/B25072e1,
+            B20_24 = (!! census_sum("B25072e", 4, 25, 7))/B25072e1,
+            B25_29 = (!! census_sum("B25072e", 5, 26, 7))/B25072e1,
+            B30_34 = (!! census_sum("B25072e", 6, 27, 7))/B25072e1,
+            GT35 = (!! census_sum("B25072e", 7, 27, 7))/B25072e1) %>%
+  arrange(desc(CBSA)) %>%
+  mutate(Index = row_number())
+
+burdened_rent_ranks <- as.data.frame(purrr::map(-burdened_rent1, rank))
+```
+
 

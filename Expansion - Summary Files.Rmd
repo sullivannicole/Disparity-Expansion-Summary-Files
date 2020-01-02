@@ -330,18 +330,20 @@ employment_by_age <- function(df) {
               Employed_20_34 = (!! census_sum_select("B23001e", c(12, 14, 19, 21, 26, 28, 33, 35, 98, 100, 105, 107, 112, 114, 119, 121)))/(!! census_sum("B23001e", 10, 31, 7) + !! census_sum("B23001e", 96, 117, 7)),
               Employed_35_64 = (!! census_sum_select("B23001e", c(40, 42, 47, 49, 54, 56, 61, 63, 68, 70, 126, 128, 133, 135, 140, 142, 147, 149, 154, 156)))/(!! census_sum("B23001e", 38, 66, 7) +  !! census_sum("B23001e", 124, 152, 7)),
               Employed_65_over = (!! census_sum_select("B23001e", c(75, 80, 85, 161, 166, 171)))/(!! census_sum_select("B23001e", c(73, 78, 83, 159, 164, 169)))) %>%
-    arrange(desc(Employed_16_19)) %>%
-    mutate(Rank_employed_16_19 = row_number()) %>%
-    arrange(desc(Employed_20_34)) %>%
-    mutate(Rank_employed_20_34 = row_number()) %>%
-    arrange(desc(Employed_35_64)) %>%
-    mutate(Rank_employed_35_64 = row_number()) %>%
-    arrange(desc(Employed_65_over)) %>%
-    mutate(Rank_employed_65_over = row_number()) %>%
-    unite(`16-19`, Employed_16_19, Rank_employed_16_19) %>%
-    unite(`20-34`, Employed_20_34, Rank_employed_20_34) %>%
-    unite(`35-64`, Employed_35_64, Rank_employed_35_64) %>%
-    unite(`65+`, Employed_65_over, Rank_employed_65_over) %>%
+    arrange(desc(CBSA)) %>%
+    mutate(Index = row_number())
+  
+  # Get rank of each column (descending order, largest = highest rank)
+  employment_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
+  colnames(employment_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
+  
+  employment_full <- full_join(df_tidy, employment_ranks, by = c("Index" = "CBSA_rank"))
+  
+  employment <- employment_full %>%
+    unite(`16-19`, Employed_16_19, Employed_16_19_rank) %>%
+    unite(`20-34`, Employed_20_34, Employed_20_34_rank) %>%
+    unite(`35-64`, Employed_35_64, Employed_35_64_rank) %>%
+    unite(`65+`, Employed_65_over, Employed_65_over_rank) %>%
     gather(`16-19`:`65+`, key = "EQUITY_GROUP", value = "Measure_rank") %>%
     mutate(EQUITY_CHARACTERISTIC = "Age",
            TOPIC_AREA = "Employment:equity group population ratio") %>%
@@ -349,7 +351,7 @@ employment_by_age <- function(df) {
     gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE") %>%
     mutate(YEAR = str_replace(df_name, pattern = "acs", replacement = ""))
   
-  assign(paste(df_name, "e_by_age", sep = "_"), df_tidy, envir = .GlobalEnv)
+  assign(paste(df_name, "e_by_age", sep = "_"), employment, envir = .GlobalEnv)
   
 }
 
@@ -407,12 +409,16 @@ poverty_by_age <- function(df) {
               Prop_35_64 = Above_poverty_35_64/(Above_poverty_35_64 + !! census_sum_select("B17001e", c(12, 13, 14, 26, 27, 28))),
               Prop_65 = Above_poverty_65/(Above_poverty_65 + !! census_sum_select("B17001e", c(15, 16, 29, 30)))) %>%
     dplyr::select(-starts_with("Above")) %>%
-    arrange(desc(Prop_18_34)) %>%
-    mutate(Rank_18_34 = row_number()) %>%
-    arrange(desc(Prop_35_64)) %>%
-    mutate(Rank_35_64 = row_number()) %>%
-    arrange(desc(Prop_65)) %>%
-    mutate(Rank_65 = row_number()) %>%
+    arrange(desc(CBSA)) %>%
+    mutate(Index = row_number()) %>%
+    
+  # Get rank of each column (descending order, largest = highest rank)
+  poverty_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
+  colnames(poverty_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
+  
+  poverty_full <- full_join(df_tidy, poverty_ranks, by = c("Index" = "CBSA_rank"))    
+  
+  poverty <- poverty_full %>%
     unite(`18-34`, Prop_18_34, Rank_18_34) %>%
     unite(`35-64`, Prop_35_64, Rank_35_64) %>%
     unite(`65+`, Prop_65, Rank_65) %>%
@@ -423,7 +429,7 @@ poverty_by_age <- function(df) {
     gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE") %>%
     mutate(YEAR = str_replace(df_name, pattern = "acs", replacement = ""))
   
-  assign(paste(df_name, "p_by_age", sep = "_"), df_tidy, envir = .GlobalEnv)
+  assign(paste(df_name, "p_by_age", sep = "_"), poverty, envir = .GlobalEnv)
   
 }
 
@@ -485,7 +491,7 @@ tenure_by_age <- function(df) {
   tenure_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
   colnames(tenure_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
   
-  tenure_full <- full_join(tenure_05, tenure_ranks, by = c("Index" = "CBSA_rank"))
+  tenure_full <- full_join(df_tidy, tenure_ranks, by = c("Index" = "CBSA_rank"))
   
   tenure <- tenure_full %>%
     dplyr::select(-starts_with("Index")) %>%

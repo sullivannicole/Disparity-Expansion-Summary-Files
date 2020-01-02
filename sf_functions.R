@@ -23,7 +23,7 @@ disability_vars <- function(df, df_name) {
   } else if (df_year >= 2009) {
     
     # Years 2009 and later use different table codes than 2007-2008 or 2005-2006
-    df_pared <- acs2009 %>%
+    df_pared <- df %>%
       dplyr::select(CBSA, starts_with("B18120"), starts_with("B18130")) %>%
       transmute(CBSA = CBSA,
                 Employed_disability = B18120e4/(B18120e4 + B18120e13 + B18120e22), # Denom = total population with disability
@@ -260,11 +260,11 @@ rent_burden_by_age <- function(df, df_name) {
               B25_29 = (!! census_sum("B25072e", 5, 26, 7))/B25072e1,
               B30_34 = (!! census_sum("B25072e", 6, 27, 7))/B25072e1,
               GT35 = (!! census_sum("B25072e", 7, 27, 7))/B25072e1) %>%
-    arrange(desc(CBSA)) %>%
+    arrange(CBSA) %>%
     mutate(Index = row_number())
   
-  # Get rank of each column (descending order, largest % = highest rank)
-  rent_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
+  # Get rank of each column (descending order, smallest % = highest rank; lower rates of housing cost burden = better)
+  rent_ranks <- as.data.frame(purrr::map(df_tidy, rank))
   
   colnames(rent_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
   
@@ -305,11 +305,11 @@ hcosts_burden_by_age <- function(df, df_name) {
               B25_29 = (!! census_sum("B25093e", 5, 26, 7))/B25093e1,
               B30_34 = (!! census_sum("B25093e", 6, 27, 7))/B25093e1,
               GT35 = (!! census_sum("B25093e", 7, 27, 7))/B25093e1) %>%
-    arrange(desc(CBSA)) %>%
+    arrange(CBSA) %>%
     mutate(Index = row_number())
   
-  # Get rank of each column (descending order, largest % = highest rank)
-  hcost_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
+  # Get rank of each column (descending order, smallest % = highest rank; lower housing cost burden = better)
+  hcost_ranks <- as.data.frame(purrr::map(df_tidy, rank))
   
   colnames(hcost_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
   
@@ -321,7 +321,7 @@ hcosts_burden_by_age <- function(df, df_name) {
     mutate(Rank = str_detect(Topic_group, "rank"),
            EQUITY_GROUP = str_extract_all(Topic_group, paste(c("15_24","25_34","35_64","65"), collapse = "|")),
            EQUITY_CHARACTERISTIC = "Age",
-           TOPIC_AREA = "Housing cost burden for renters:equity group population ratio",
+           TOPIC_AREA = "Housing cost burden for homeowners:equity group population ratio",
            MEASURE = ifelse(Rank == "TRUE", "Rank of measure", "Measure"),
            EQUITY_GROUP = recode(as.character(EQUITY_GROUP), 
                                  `15_24` = "15-24",

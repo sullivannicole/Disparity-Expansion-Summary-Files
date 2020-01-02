@@ -812,4 +812,88 @@ rburden_by_age <- rbind(acs2005_rburden_by_age,
                         acs2018_rburden_by_age)
 ```
 
+# Monthly owner costs as a percentage of hh income in last 12 months by age (B25093) (2005-2018)
+
+```{r}
+
+hcosts_burden_by_age <- function(df) {
+  
+  df_name <- deparse(substitute(df))
+  
+  df_year <- as.numeric(substr(df_name, 4, 7))
+  
+  df_tidy <- df %>%
+    dplyr::select(CBSA, starts_with("B25093")) %>%
+    transmute(CBSA = CBSA,
+              B15_24 = (B25093e6 + B25093e7)/B25093e2,
+              B25_34 = (B25093e13 + B25093e14)/B25093e9,
+              B35_64 = (B25093e20 + B25093e21)/B25093e16,
+              B35_65 = (B25093e27 + B25093e28)/B25093e23,
+              LT20 = (!! census_sum("B25093e", 3, 24, 7))/B25093e1,
+              B20_24 = (!! census_sum("B25093e", 4, 25, 7))/B25093e1,
+              B25_29 = (!! census_sum("B25093e", 5, 26, 7))/B25093e1,
+              B30_34 = (!! census_sum("B25093e", 6, 27, 7))/B25093e1,
+              GT35 = (!! census_sum("B25093e", 7, 27, 7))/B25093e1) %>%
+    arrange(desc(CBSA)) %>%
+    mutate(Index = row_number())
+  
+  # Get rank of each column (descending order, largest % = highest rank)
+  hcost_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
+  
+  colnames(hcost_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
+  
+  hcost_full <- full_join(df_tidy, hcost_ranks, by = c("Index" = "CBSA_rank"))
+  
+  hcosts <- hcost_full %>%
+    dplyr::select(-starts_with("Index")) %>%
+    gather(key = "Topic_group", value = "VALUE", -one_of("CBSA")) %>%
+    mutate(Rank = str_detect(Topic_group, "rank"),
+           EQUITY_GROUP = str_extract_all(Topic_group, paste(c("15_24","25_34","35_64","65"), collapse = "|")),
+           EQUITY_CHARACTERISTIC = "Age",
+           TOPIC_AREA = "Housing cost burden for renters:equity group population ratio",
+           MEASURE = ifelse(Rank == "TRUE", "Rank of measure", "Measure"),
+           EQUITY_GROUP = recode(as.character(EQUITY_GROUP), 
+                                 `15_24` = "15-24",
+                                 `25_34` = "25-34",
+                                 `35_64` = "35-64",
+                                 `65` = "65+",
+                                 `character(0)` = "Total"),
+           YEAR = str_replace(df_name, pattern = "acs", replacement = "")) %>%
+    dplyr::select(-Topic_group, -Rank)
+  
+  assign(paste(df_name, "hburden_by_age", sep = "_"), hcosts, envir = .GlobalEnv)
+  
+}
+
+hcosts_burden_by_age(acs2005)
+hcosts_burden_by_age(acs2006)
+hcosts_burden_by_age(acs2007)
+hcosts_burden_by_age(acs2008)
+hcosts_burden_by_age(acs2009)
+hcosts_burden_by_age(acs2010)
+hcosts_burden_by_age(acs2011)
+hcosts_burden_by_age(acs2012)
+hcosts_burden_by_age(acs2013)
+hcosts_burden_by_age(acs2014)
+hcosts_burden_by_age(acs2015)
+hcosts_burden_by_age(acs2016)
+hcosts_burden_by_age(acs2017)
+hcosts_burden_by_age(acs2018)
+
+hburden_by_age <- rbind(acs2005_hburden_by_age,
+                        acs2006_hburden_by_age,
+                        acs2007_hburden_by_age,
+                        acs2008_hburden_by_age,
+                        acs2009_hburden_by_age,
+                        acs2010_hburden_by_age,
+                        acs2011_hburden_by_age,
+                        acs2012_hburden_by_age,
+                        acs2013_hburden_by_age,
+                        acs2014_hburden_by_age,
+                        acs2015_hburden_by_age,
+                        acs2016_hburden_by_age,
+                        acs2017_hburden_by_age,
+                        acs2018_hburden_by_age)
+```
+
 

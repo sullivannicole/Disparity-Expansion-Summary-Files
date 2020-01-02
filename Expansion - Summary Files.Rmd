@@ -410,7 +410,7 @@ poverty_by_age <- function(df) {
               Prop_65 = Above_poverty_65/(Above_poverty_65 + !! census_sum_select("B17001e", c(15, 16, 29, 30)))) %>%
     dplyr::select(-starts_with("Above")) %>%
     arrange(desc(CBSA)) %>%
-    mutate(Index = row_number()) %>%
+    mutate(Index = row_number())
     
   # Get rank of each column (descending order, largest = highest rank)
   poverty_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
@@ -419,9 +419,10 @@ poverty_by_age <- function(df) {
   poverty_full <- full_join(df_tidy, poverty_ranks, by = c("Index" = "CBSA_rank"))    
   
   poverty <- poverty_full %>%
-    unite(`18-34`, Prop_18_34, Rank_18_34) %>%
-    unite(`35-64`, Prop_35_64, Rank_35_64) %>%
-    unite(`65+`, Prop_65, Rank_65) %>%
+    dplyr::select(-starts_with("Index")) %>%
+    unite(`18-34`, Prop_18_34, Prop_18_34_rank) %>%
+    unite(`35-64`, Prop_35_64, Prop_35_64_rank) %>%
+    unite(`65+`, Prop_65, Prop_65_rank) %>%
     gather(`18-34`:`65+`, key = "EQUITY_GROUP", value = "Measure_rank") %>%
     mutate(EQUITY_CHARACTERISTIC = "Age",
            TOPIC_AREA = "At/above poverty:equity group population ratio") %>%

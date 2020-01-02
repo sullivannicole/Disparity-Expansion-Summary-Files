@@ -127,120 +127,81 @@ disability_vars <- function(df, df_name) {
   #assign(paste(df_name, "disability_vars", sep = "_"), disability, envir = .GlobalEnv)
 }
 
-employment_by_age <- function(df, df_name) {
-  
-  df_year <- as.numeric(df_name)
+age_vars <- function(df, df_name) {
   
   df_tidy <- df %>%
-    dplyr::select(CBSA, starts_with("B23001")) %>%
+    dplyr::select(CBSA, starts_with("B25007"), starts_with("B17001"), starts_with("B23001")) %>%
     transmute(CBSA = CBSA,
+              Owner_occ_15_24 = B25007e3/(B25007e3 + B25007e13),
+              Owner_occ_25_34 = B25007e4/(B25007e4 + B25007e14),
+              Owner_occ_35_64 = (!! census_sum("B25007e", 5, 8, 1))/(!! census_sum("B25007e", 5, 8, 1) + !! census_sum("B25007e", 15, 18, 1)),
+              Owner_occ_65_over = (B25007e9 + B25007e10 + B25007e11)/(!! census_sum_select("B25007e", c(9, 10, 11, 19, 20, 21))),
+              Above_poverty_18_34 = !! census_sum_select("B17001e", c(39, 40, 53, 54)),
+              Above_poverty_35_64 = !! census_sum_select("B17001e", c(41, 42, 43, 55, 56, 57)),
+              Above_poverty_65 = !! census_sum_select("B17001e", c(44, 45, 58, 59)),
+              Prop_above_pov_18_34 = Above_poverty_18_34/(Above_poverty_18_34 + !! census_sum_select("B17001e", c(10, 11, 24, 25))),
+              Prop_above_pov_35_64 = Above_poverty_35_64/(Above_poverty_35_64 + !! census_sum_select("B17001e", c(12, 13, 14, 26, 27, 28))),
+              Prop_above_pov_65 = Above_poverty_65/(Above_poverty_65 + !! census_sum_select("B17001e", c(15, 16, 29, 30))),
               Employed_16_19 = (!! census_sum_select("B23001e", c(5, 7, 91, 93)))/(B23001e3 + B23001e89),
               Employed_20_34 = (!! census_sum_select("B23001e", c(12, 14, 19, 21, 26, 28, 33, 35, 98, 100, 105, 107, 112, 114, 119, 121)))/(!! census_sum("B23001e", 10, 31, 7) + !! census_sum("B23001e", 96, 117, 7)),
               Employed_35_64 = (!! census_sum_select("B23001e", c(40, 42, 47, 49, 54, 56, 61, 63, 68, 70, 126, 128, 133, 135, 140, 142, 147, 149, 154, 156)))/(!! census_sum("B23001e", 38, 66, 7) +  !! census_sum("B23001e", 124, 152, 7)),
               Employed_65_over = (!! census_sum_select("B23001e", c(75, 80, 85, 161, 166, 171)))/(!! census_sum_select("B23001e", c(73, 78, 83, 159, 164, 169)))) %>%
+    dplyr::select(-starts_with("Above")) %>%
     arrange(desc(CBSA)) %>%
     mutate(Index = row_number())
   
-  # Get rank of each column (descending order, largest = highest rank)
-  employment_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
-  colnames(employment_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
+  burden <- df %>%
+    dplyr::select(CBSA, starts_with("B25072"), starts_with("B25093")) %>%
+    transmute(CBSA = CBSA,
+              Hburden_15_24 = (B25093e6 + B25093e7)/B25093e2,
+              Hburden_25_34 = (B25093e13 + B25093e14)/B25093e9,
+              Hburden_35_64 = (B25093e20 + B25093e21)/B25093e16,
+              Hburden_65 = (B25093e27 + B25093e28)/B25093e23,
+              Rburden_15_24 = (B25072e6 + B25072e7)/B25072e2,
+              Rburden_25_34 = (B25072e13 + B25072e14)/B25072e9,
+              Rburden_35_64 = (B25072e20 + B25072e21)/B25072e16,
+              Rburden_65 = (B25072e27 + B25072e28)/B25072e23) %>%
+    arrange(CBSA) %>%
+    mutate(Index = row_number())
   
-  employment_full <- full_join(df_tidy, employment_ranks, by = c("Index" = "CBSA_rank"))
+  # Get rank of each column (descending order, largest % = highest rank)
+  ranks <- as.data.frame(purrr::map(-df_tidy, rank))
+  colnames(ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
   
-  # Re-structure/tidy df
-  employment <- employment_full %>%
+  ranks_full <- full_join(df_tidy, ranks, by = c("Index" = "CBSA_rank"))
+  
+  # Get rank of each column (ascending order, smallest % = highest rank) - ie higher housing cost burden = lower rank
+  burden_ranks <- as.data.frame(purrr::map(burden, rank))
+  colnames(burden_ranks) <- paste(colnames(burden), "rank", sep = "_")
+  
+  burden_ranks_full <- full_join(burden, burden_ranks, by = c("Index" = "CBSA_rank"))
+  
+  df_ranks <- full_join(ranks_full, burden_ranks_full, by = "CBSA")
+  
+  df_full_tidy <- df_ranks %>%
     dplyr::select(-starts_with("Index")) %>%
     gather(key = "Topic_group", value = "VALUE", -one_of("CBSA")) %>%
     mutate(Rank = str_detect(Topic_group, "rank"),
-           EQUITY_GROUP = str_extract_all(Topic_group, paste(c("16_19","20_34","35_64","65"), collapse = "|")),
+           EQUITY_GROUP = str_extract_all(Topic_group, paste(c("15_24", "18_34", "25_34", "16_19","20_34","35_64","65"), collapse = "|")),
            EQUITY_CHARACTERISTIC = "Age",
-           TOPIC_AREA = "Employment:equity group population ratio",
+           TOPIC_AREA = str_extract_all(Topic_group, paste(c("Owner_occ", "pov", "Employ", "Hburden", "Rburden"), collapse = "|")),
            MEASURE = ifelse(Rank == "TRUE", "Rank of measure", "Measure"),
+           TOPIC_AREA = recode(as.character(TOPIC_AREA),
+                               Owner_occ = "Owner-occupied units:equity group population ratio",
+                               pov = "At/above poverty:equity group population ratio",
+                               Employ = "Employment:equity group population ratio",
+                               Hburden = "Housing cost burden for owners:equity group population ratio",
+                               Rburden = "Housing cost burden for renters:equity group population ratio"),
            EQUITY_GROUP = recode(as.character(EQUITY_GROUP), 
+                                 `15_24` = "15-24",
+                                 `18_34` = "18-34",
+                                 `25-34` = "25-34",
                                  `16_19` = "16-19",
                                  `20_34` = "20-34",
                                  `35_64` = "35-64",
                                  `65` = "65+"),
            YEAR = df_name) %>%
     dplyr::select(-Topic_group, -Rank)
-  
-  #assign(paste(df_name, "e_by_age", sep = "_"), employment, envir = .GlobalEnv)
-  
-}
-
-poverty_by_age <- function(df, df_name) {
-  
-  df_year <- as.numeric(df_name)
-  
-  df_tidy <- df %>%
-    dplyr::select(CBSA, starts_with("B17001")) %>%
-    transmute(CBSA = CBSA,
-              Above_poverty_18_34 = !! census_sum_select("B17001e", c(39, 40, 53, 54)),
-              Above_poverty_35_64 = !! census_sum_select("B17001e", c(41, 42, 43, 55, 56, 57)),
-              Above_poverty_65 = !! census_sum_select("B17001e", c(44, 45, 58, 59)),
-              Prop_18_34 = Above_poverty_18_34/(Above_poverty_18_34 + !! census_sum_select("B17001e", c(10, 11, 24, 25))),
-              Prop_35_64 = Above_poverty_35_64/(Above_poverty_35_64 + !! census_sum_select("B17001e", c(12, 13, 14, 26, 27, 28))),
-              Prop_65 = Above_poverty_65/(Above_poverty_65 + !! census_sum_select("B17001e", c(15, 16, 29, 30)))) %>%
-    dplyr::select(-starts_with("Above")) %>%
-    arrange(desc(CBSA)) %>%
-    mutate(Index = row_number())
-  
-  # Get rank of each column (descending order, largest = highest rank)
-  poverty_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
-  colnames(poverty_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
-  
-  poverty_full <- full_join(df_tidy, poverty_ranks, by = c("Index" = "CBSA_rank"))    
-  
-  poverty <- poverty_full %>%
-    dplyr::select(-starts_with("Index")) %>%
-    unite(`18-34`, Prop_18_34, Prop_18_34_rank) %>%
-    unite(`35-64`, Prop_35_64, Prop_35_64_rank) %>%
-    unite(`65+`, Prop_65, Prop_65_rank) %>%
-    gather(`18-34`:`65+`, key = "EQUITY_GROUP", value = "Measure_rank") %>%
-    mutate(EQUITY_CHARACTERISTIC = "Age",
-           TOPIC_AREA = "At/above poverty:equity group population ratio") %>%
-    separate(Measure_rank, into = c("Measure", "Rank of measure"), sep = "_") %>%
-    gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE") %>%
-    mutate(YEAR = df_name)
-  
-  #assign(paste(df_name, "p_by_age", sep = "_"), poverty, envir = .GlobalEnv)
-  
-}
-
-tenure_by_age <- function(df, df_name) {
-  
-  df_year <- as.numeric(df_name)
-  
-  df_tidy <- df %>%
-    dplyr::select(CBSA, starts_with("B25007")) %>%
-    transmute(CBSA = CBSA,
-              Owner_occ_15_24 = B25007e3/(B25007e3 + B25007e13),
-              Owner_occ_25_34 = B25007e4/(B25007e4 + B25007e14),
-              Owner_occ_35_64 = (!! census_sum("B25007e", 5, 8, 1))/(!! census_sum("B25007e", 5, 8, 1) + !! census_sum("B25007e", 15, 18, 1)),
-              Owner_occ_65_over = (B25007e9 + B25007e10 + B25007e11)/(!! census_sum_select("B25007e", c(9, 10, 11, 19, 20, 21)))) %>%
-    arrange(desc(CBSA)) %>%
-    mutate(Index = row_number())
-  
-  # Get rank of each column (descending order, largest = highest rank)
-  tenure_ranks <- as.data.frame(purrr::map(-df_tidy, rank))
-  colnames(tenure_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
-  
-  tenure_full <- full_join(df_tidy, tenure_ranks, by = c("Index" = "CBSA_rank"))
-  
-  tenure <- tenure_full %>%
-    dplyr::select(-starts_with("Index")) %>%
-    unite(`15-24`, Owner_occ_15_24, Owner_occ_15_24_rank) %>%
-    unite(`25-34`, Owner_occ_25_34, Owner_occ_25_34_rank) %>%
-    unite(`35-64`, Owner_occ_35_64, Owner_occ_35_64_rank) %>%
-    unite(`65+`, Owner_occ_65_over, Owner_occ_65_over_rank) %>%
-    gather(`15-24`:`65+`, key = "EQUITY_GROUP", value = "Measure_rank") %>%
-    mutate(EQUITY_CHARACTERISTIC = "Age",
-           TOPIC_AREA = "Owner-occupied units:equity group population ratio") %>%
-    separate(Measure_rank, into = c("Measure", "Rank of measure"), sep = "_") %>%
-    gather(Measure, `Rank of measure`, key = "MEASURE", value = "VALUE") %>%
-    mutate(YEAR = df_name)
-  
-  #assign(paste(df_name, "tenure_by_age", sep = "_"), tenure, envir = .GlobalEnv)
   
 }
 
@@ -251,14 +212,14 @@ rent_burden_by_age <- function(df, df_name) {
   df_tidy <- df %>%
     dplyr::select(CBSA, starts_with("B25072")) %>%
     transmute(CBSA = CBSA,
-              B15_24 = (B25072e6 + B25072e7)/B25072e2,
-              B25_34 = (B25072e13 + B25072e14)/B25072e9,
-              B35_64 = (B25072e20 + B25072e21)/B25072e16,
-              B35_65 = (B25072e27 + B25072e28)/B25072e23,
-              LT20 = (!! census_sum("B25072e", 3, 24, 7))/B25072e1,
-              B20_24 = (!! census_sum("B25072e", 4, 25, 7))/B25072e1,
-              B25_29 = (!! census_sum("B25072e", 5, 26, 7))/B25072e1,
-              B30_34 = (!! census_sum("B25072e", 6, 27, 7))/B25072e1,
+              Rburden_15_24 = (B25072e6 + B25072e7)/B25072e2,
+              Rburden_25_34 = (B25072e13 + B25072e14)/B25072e9,
+              Rburden_35_64 = (B25072e20 + B25072e21)/B25072e16,
+              Rburden_35_65 = (B25072e27 + B25072e28)/B25072e23,
+              Rburden_LT20 = (!! census_sum("B25072e", 3, 24, 7))/B25072e1,
+              Rburden_20_24 = (!! census_sum("B25072e", 4, 25, 7))/B25072e1,
+              Rburden_25_29 = (!! census_sum("B25072e", 5, 26, 7))/B25072e1,
+              Rburden_30_34 = (!! census_sum("B25072e", 6, 27, 7))/B25072e1,
               GT35 = (!! census_sum("B25072e", 7, 27, 7))/B25072e1) %>%
     arrange(CBSA) %>%
     mutate(Index = row_number())
@@ -290,6 +251,7 @@ rent_burden_by_age <- function(df, df_name) {
   #assign(paste(df_name, "rburden_by_age", sep = "_"), rent, envir = .GlobalEnv)
   
 }
+
 
 hcosts_burden_by_age <- function(df, df_name) {
   
@@ -333,5 +295,48 @@ hcosts_burden_by_age <- function(df, df_name) {
     dplyr::select(-Topic_group, -Rank)
   
   #assign(paste(df_name, "hburden_by_age", sep = "_"), hcosts, envir = .GlobalEnv)
+  
+}
+
+burden_by_age <- function(df, df_name) {
+  
+  df_tidy <- df %>%
+    dplyr::select(CBSA, starts_with("B25093")) %>%
+    transmute(CBSA = CBSA,
+              hburden_15_24 = (B25093e6 + B25093e7)/B25093e2,
+              hburden_25_34 = (B25093e13 + B25093e14)/B25093e9,
+              hburden_35_64 = (B25093e20 + B25093e21)/B25093e16,
+              hburden_35_65 = (B25093e27 + B25093e28)/B25093e23,
+              hburden_LT20 = (!! census_sum("B25093e", 3, 24, 7))/B25093e1,
+              hburden_B20_24 = (!! census_sum("B25093e", 4, 25, 7))/B25093e1,
+              hburden_B25_29 = (!! census_sum("B25093e", 5, 26, 7))/B25093e1,
+              hburden_B30_34 = (!! census_sum("B25093e", 6, 27, 7))/B25093e1,
+              hburden_GT35 = (!! census_sum("B25093e", 7, 27, 7))/B25093e1) %>%
+    arrange(CBSA) %>%
+    mutate(Index = row_number())
+  
+  # Get rank of each column (descending order, smallest % = highest rank; lower housing cost burden = better)
+  burden_ranks <- as.data.frame(purrr::map(df_tidy, rank))
+  
+  colnames(burden_ranks) <- paste(colnames(df_tidy), "rank", sep = "_")
+  
+  burden_full <- full_join(df_tidy, burden_ranks, by = c("Index" = "CBSA_rank"))
+  
+  burden <- burden_full %>%
+    dplyr::select(-starts_with("Index")) %>%
+    gather(key = "Topic_group", value = "VALUE", -one_of("CBSA")) %>%
+    mutate(Rank = str_detect(Topic_group, "rank"),
+           EQUITY_GROUP = str_extract_all(Topic_group, paste(c("15_24","25_34","35_64","65"), collapse = "|")),
+           EQUITY_CHARACTERISTIC = "Age",
+           TOPIC_AREA = "Housing cost burden for homeowners:equity group population ratio",
+           MEASURE = ifelse(Rank == "TRUE", "Rank of measure", "Measure"),
+           EQUITY_GROUP = recode(as.character(EQUITY_GROUP), 
+                                 `15_24` = "15-24",
+                                 `25_34` = "25-34",
+                                 `35_64` = "35-64",
+                                 `65` = "65+",
+                                 `character(0)` = "Total"),
+           YEAR = df_name) %>%
+    dplyr::select(-Topic_group, -Rank)
   
 }

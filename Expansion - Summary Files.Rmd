@@ -5,6 +5,7 @@ output: html_notebook
 
 ```{r}
 library(tidyverse)
+library(purrr)
 library(rlang)
 source("N:\\CommDev\\Research\\Public\\Overview of Census and ACS Data\\sumRange.R")
 source("make_names.R")
@@ -59,28 +60,12 @@ Disparity and rank of disparity aren't calculated for age equity groups.  No "ty
 disability_ls <- purrr::map2(df_list, df_list_names, disability_vars)
 disability_df <- bind_rows(disability_ls)
 
-# Employment by age
-e_by_age_ls <- purrr::map2(df_list, df_list_names, employment_by_age)
-e_by_age_df <- bind_rows(e_by_age_ls)
+# Employment, poverty, homeownership by age, gross rent as a percentage of hh income in last 12 months (housing cost burden for renters) by age
+# Monthly owner costs as a percentage of hh income in last 12 months (housing cost burden for homeowners) by age
+age_ls <- purrr::map2(df_list, df_list_names, age_vars)
+age_df <- bind_rows(age_ls)
 
-# Poverty by age
-p_by_age_ls <- purrr::map2(df_list, df_list_names, poverty_by_age)
-p_by_age_df <- bind_rows(p_by_age_ls)
-
-# Homeownership by age
-tenure_by_age_ls <- purrr::map2(df_list, df_list_names, tenure_by_age)
-tenure_by_age_df <- bind_rows(tenure_by_age_ls)
-
-# Gross rent as a percentage of hh income in last 12 months by age (B25072) (2005-2018)
-rburden_by_age_ls <- purrr::map2(df_list, df_list_names, rent_burden_by_age)
-rburden_by_age_df <- bind_rows(rburden_by_age_ls)
-
-
-# Monthly owner costs as a percentage of hh income in last 12 months by age (B25093) (2005-2018)
-hcosts_burden_by_age_ls <- purrr::map2(df_list, df_list_names, hcosts_burden_by_age)
-hcosts_burden_by_age_df <- bind_rows(hcosts_burden_by_age_ls)
-
-sf_df <- rbind(disability_df, e_by_age_df, p_by_age_df, tenure_by_age_df, rburden_by_age_df, hcosts_burden_by_age_df)
+sf_df <- rbind(disability_df, age_df)
 
 write_csv(sf_df, "Expansion - Summary File Variables.csv")
 ```

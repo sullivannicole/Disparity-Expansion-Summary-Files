@@ -340,6 +340,7 @@ employment_by_age <- function(df) {
   employment_full <- full_join(df_tidy, employment_ranks, by = c("Index" = "CBSA_rank"))
   
   employment <- employment_full %>%
+    dplyr::select(-starts_with("Index")) %>%
     unite(`16-19`, Employed_16_19, Employed_16_19_rank) %>%
     unite(`20-34`, Employed_20_34, Employed_20_34_rank) %>%
     unite(`35-64`, Employed_35_64, Employed_35_64_rank) %>%

@@ -26,11 +26,11 @@ disability_vars <- function(df, df_name) {
     df_pared <- df %>%
       dplyr::select(CBSA, starts_with("B18120"), starts_with("B18130")) %>%
       transmute(CBSA = CBSA,
-                Employed_disability = B18120e4/(B18120e4 + B18120e13 + B18120e22), # Denom = total population with disability
-                Employed_no_disability = B18120e11/(B18120e11 + B18120e20 + B18120e29), # Denom = total population with no disability
+                Employed_disability = B18120e4/(B18120e4 + B18120e13 + B18120e22), # Denom = civilian noninstitutionalized pop with disability
+                Employed_no_disability = B18120e11/(B18120e11 + B18120e20 + B18120e29), # Denom = civilian noninstitutionalized pop with no disability
                 Above_poverty_disability = !! census_sum("B18130e", 5, 40, 7),
                 Above_poverty_no_disability = !! census_sum("B18130e", 8, 43, 7),
-                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + !! census_sum("B18130e", 4, 39, 7)),
+                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + !! census_sum("B18130e", 4, 39, 7)), # Denom = civilian noninstitutionalized pop with no disability
                 Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + !! census_sum("B18130e", 7, 42, 7))) %>%
       dplyr::select(-starts_with("Above"))
     
@@ -38,7 +38,9 @@ disability_vars <- function(df, df_name) {
     
   } else if (df_year <= 2007 & df_year >= 2005) {
     
-    # Years 2005 and 2006
+    # Universe = civilian noninstitutionalized pop 18-64
+    
+
     df_pared <- df %>%
       dplyr::select(CBSA, starts_with("B18020e"), starts_with("B18030")) %>%
       transmute(CBSA = CBSA,
@@ -53,6 +55,7 @@ disability_vars <- function(df, df_name) {
   
   else if (df_year == 2008) {
     
+    # Universe = civilian noninstitutionalized pop 18-64
     
     df_pared <- df %>%
       dplyr::select(CBSA, starts_with("B18120"), starts_with("B18130")) %>%
@@ -129,23 +132,25 @@ disability_vars <- function(df, df_name) {
 
 age_vars <- function(df, df_name) {
   
+  # Universe = civilian, non-institutionalized pop (excludes armed forces members)
+  
   df_tidy <- df %>%
     dplyr::select(CBSA, starts_with("B25007"), starts_with("B17001"), starts_with("B23001")) %>%
     transmute(CBSA = CBSA,
-              Owner_occ_15_24 = B25007e3/(B25007e3 + B25007e13),
-              Owner_occ_25_34 = B25007e4/(B25007e4 + B25007e14),
+              Owner_occ_under_35 = (B25007e3 + B25007e4)/(!! census_sum_select("B25007e", c(3, 4, 13, 14))), # ages 15 - 34
               Owner_occ_35_64 = (!! census_sum("B25007e", 5, 8, 1))/(!! census_sum("B25007e", 5, 8, 1) + !! census_sum("B25007e", 15, 18, 1)),
               Owner_occ_65_over = (B25007e9 + B25007e10 + B25007e11)/(!! census_sum_select("B25007e", c(9, 10, 11, 19, 20, 21))),
-              Above_poverty_18_34 = !! census_sum_select("B17001e", c(39, 40, 53, 54)),
+              Above_poverty_under_35 = !! census_sum_select("B17001e", c(39, 40, 53, 54)), # ages 18 - 34
               Above_poverty_35_64 = !! census_sum_select("B17001e", c(41, 42, 43, 55, 56, 57)),
               Above_poverty_65 = !! census_sum_select("B17001e", c(44, 45, 58, 59)),
-              Prop_above_pov_18_34 = Above_poverty_18_34/(Above_poverty_18_34 + !! census_sum_select("B17001e", c(10, 11, 24, 25))),
+              Prop_above_pov_under_35 = Above_poverty_under_35/(Above_poverty_under_35 + !! census_sum_select("B17001e", c(10, 11, 24, 25))),
               Prop_above_pov_35_64 = Above_poverty_35_64/(Above_poverty_35_64 + !! census_sum_select("B17001e", c(12, 13, 14, 26, 27, 28))),
               Prop_above_pov_65 = Above_poverty_65/(Above_poverty_65 + !! census_sum_select("B17001e", c(15, 16, 29, 30))),
-              Employed_16_19 = (!! census_sum_select("B23001e", c(5, 7, 91, 93)))/(B23001e3 + B23001e89),
-              Employed_20_34 = (!! census_sum_select("B23001e", c(12, 14, 19, 21, 26, 28, 33, 35, 98, 100, 105, 107, 112, 114, 119, 121)))/(!! census_sum("B23001e", 10, 31, 7) + !! census_sum("B23001e", 96, 117, 7)),
-              Employed_35_64 = (!! census_sum_select("B23001e", c(40, 42, 47, 49, 54, 56, 61, 63, 68, 70, 126, 128, 133, 135, 140, 142, 147, 149, 154, 156)))/(!! census_sum("B23001e", 38, 66, 7) +  !! census_sum("B23001e", 124, 152, 7)),
-              Employed_65_over = (!! census_sum_select("B23001e", c(75, 80, 85, 161, 166, 171)))/(!! census_sum_select("B23001e", c(73, 78, 83, 159, 164, 169)))) %>%
+              #Employed_16_19 = (B23001e7 + B23001e93)/(!! census_sum_select("B23001e", c(6, 9, 92, 95))),
+              #Employed_20_34 = (!! census_sum_select("B23001e", c(14, 21, 28, 35, 100, 107, 114, 121)))/(!! census_sum_select("B23001e", c(13, 16, 20, 23, 27, 30, 34, 37, 99, 102, 106, 109, 113, 116, 120, 123))),
+              Employed_under_35 = (!! census_sum("B23001e", 7, 35, 7) + !! census_sum("B23001e", 93, 121, 7))/(!! census_sum("B23001e", 6, 34, 7) + !! census_sum("B23001e", 9, 37, 7) + !! census_sum("B23001e", 92, 120, 7) + !! census_sum("B23001e", 95, 123, 7)),
+              Employed_35_64 = (!! census_sum_select("B23001e", c(42, 49, 56, 63, 70, 128, 135, 142, 149, 156)))/(!! census_sum_select("B23001e", c(41, 44, 48, 51, 55, 58, 62, 65, 69, 72, 127, 130, 134, 137, 141, 144, 148, 151, 155, 158))),
+              Employed_65_over = (!! census_sum_select("B23001e", c(75, 80, 85, 161, 166, 171)))/(!! census_sum_select("B23001e", c(73, 78, 83, 159, 164, 169)))) %>% # 65+ are civilian-only by definition
     dplyr::select(-starts_with("Above")) %>%
     arrange(desc(CBSA)) %>%
     mutate(Index = row_number())
@@ -153,12 +158,14 @@ age_vars <- function(df, df_name) {
   burden <- df %>%
     dplyr::select(CBSA, starts_with("B25072"), starts_with("B25093")) %>%
     transmute(CBSA = CBSA,
-              Hburden_15_24 = (B25093e6 + B25093e7)/B25093e2,
-              Hburden_25_34 = (B25093e13 + B25093e14)/B25093e9,
+              #Hburden_15_24 = (B25093e6 + B25093e7)/B25093e2,
+              #Hburden_25_34 = (B25093e13 + B25093e14)/B25093e9,
+              Hburden_under_35 = (!! census_sum_select("B25093e", c(6, 7, 13, 14)))/(B25093e2 + B25093e9 - B25093e8 - B25093e15), # Subtract not-computed households from universe
               Hburden_35_64 = (B25093e20 + B25093e21)/B25093e16,
               Hburden_65 = (B25093e27 + B25093e28)/B25093e23,
-              Rburden_15_24 = (B25072e6 + B25072e7)/B25072e2,
-              Rburden_25_34 = (B25072e13 + B25072e14)/B25072e9,
+              #Rburden_15_24 = (B25072e6 + B25072e7)/B25072e2,
+              #Rburden_25_34 = (B25072e13 + B25072e14)/B25072e9,
+              Rburden_under_35 = (!! census_sum_select("B25072e", c(6, 7, 13, 14)))/(B25072e2 + B25072e9 - B25072e8 - B25072e15), # Subtract not-computed households from universe
               Rburden_35_64 = (B25072e20 + B25072e21)/B25072e16,
               Rburden_65 = (B25072e27 + B25072e28)/B25072e23) %>%
     arrange(CBSA) %>%
@@ -182,7 +189,7 @@ age_vars <- function(df, df_name) {
     dplyr::select(-starts_with("Index")) %>%
     gather(key = "Topic_group", value = "VALUE", -one_of("CBSA")) %>%
     mutate(Rank = str_detect(Topic_group, "rank"),
-           EQUITY_GROUP = str_extract_all(Topic_group, paste(c("15_24", "18_34", "25_34", "16_19","20_34","35_64","65"), collapse = "|")),
+           EQUITY_GROUP = str_extract_all(Topic_group, paste(c("under_35", "35_64", "65"), collapse = "|")),
            EQUITY_CHARACTERISTIC = "Age",
            TOPIC_AREA = str_extract_all(Topic_group, paste(c("Owner_occ", "pov", "Employ", "Hburden", "Rburden"), collapse = "|")),
            MEASURE = ifelse(Rank == "TRUE", "Rank of measure", "Measure"),
@@ -193,11 +200,12 @@ age_vars <- function(df, df_name) {
                                Hburden = "Housing cost burden for owners:equity group population ratio",
                                Rburden = "Housing cost burden for renters:equity group population ratio"),
            EQUITY_GROUP = recode(as.character(EQUITY_GROUP), 
-                                 `15_24` = "15-24",
-                                 `18_34` = "18-34",
-                                 `25-34` = "25-34",
-                                 `16_19` = "16-19",
-                                 `20_34` = "20-34",
+                                 #`15_24` = "15-24",
+                                 #`18_34` = "18-34",
+                                 under_35 = "Under 35",
+                                 #`25-34` = "25-34",
+                                 #`16_19` = "16-19",
+                                 #`20_34` = "20-34",
                                  `35_64` = "35-64",
                                  `65` = "65+"),
            YEAR = df_name) %>%

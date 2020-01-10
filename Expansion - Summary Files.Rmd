@@ -9,9 +9,9 @@ output: html_notebook
 library(tidyverse)
 library(rlang)
 source("N:\\CommDev\\Research\\Public\\Overview of Census and ACS Data\\sumRange.R")
-source("make_names.R")
-source("census_sums.R")
-source("sf_functions.R")
+source("R/make_names.R")
+source("R/census_sums.R")
+source("R/sf_functions.R")
 ```
 
 # Read in files

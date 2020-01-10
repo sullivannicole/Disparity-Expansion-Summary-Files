@@ -50,7 +50,7 @@ df_list_names <- ls(df_list) # Create list from names
 
 Use odds ratio to calculate disparities (see Matt Schroeder's helpful explanation below).
 
-![Odds-ratio explanation](Odds-ratio for disparities.png)
+![Odds-ratio explanation](Images/Odds-ratio for disparities.png)
 
 Calculate odds of those with 1+ disabilities being employed or at/above poverty relative to odds of those with no disabilities being employed or being at/above poverty.  Where odds of 1+ disabilities persons being employed (or being at/above poverty) are lower relative to odds of those with no disabilities being employed (at/above poverty), disparity is wider. For example, if odds of 1+ disabilities person being employed (relative to a no disabilities person) in Area 1 is 0.11 and odds are 0.56 in Area 2, disparity between the two groups is wider in Area 1.
 

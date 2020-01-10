@@ -30,8 +30,8 @@ disability_vars <- function(df, df_name) {
                 Employed_no_disability = B18120e11/(B18120e11 + B18120e20 + B18120e29), # Denom = civilian noninstitutionalized pop with no disability
                 Above_poverty_disability = !! census_sum("B18130e", 5, 40, 7),
                 Above_poverty_no_disability = !! census_sum("B18130e", 8, 43, 7),
-                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + !! census_sum("B18130e", 4, 39, 7)), # Denom = civilian noninstitutionalized pop with no disability
-                Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + !! census_sum("B18130e", 7, 42, 7))) %>%
+                Prop_below_poverty_disability = 1 - (Above_poverty_disability/(Above_poverty_disability + !! census_sum("B18130e", 4, 39, 7))), # Denom = civilian noninstitutionalized pop with no disability
+                Prop_below_poverty_no_disability = 1 - (Above_poverty_no_disability/(Above_poverty_no_disability + !! census_sum("B18130e", 7, 42, 7)))) %>%
       dplyr::select(-starts_with("Above"))
     
     invisible(df_pared)
@@ -46,8 +46,8 @@ disability_vars <- function(df, df_name) {
       transmute(CBSA = CBSA,
                 Employed_disability = (B18020e5 + B18020e8 + B18020e12 + B18020e15)/B18020e2, # Num = males and females of two different age groups that have 1+ disabilities and are employed
                 Employed_no_disability = (B18020e20 + B18020e23 + B18020e27 + B18020e30)/B18020e17,
-                Prop_above_poverty_disability = (!! census_sum("B18030e", 6, 15, 3) + B18030e19 + B18030e22 + B18030e25 + B18030e28)/B18030e2,
-                Prop_above_poverty_no_disability = (!! census_sum("B18030e", 33, 42, 3) + !! census_sum("B18030e", 46, 55, 3))/B18030e29)
+                Prop_below_poverty_disability = 1 - ((!! census_sum("B18030e", 6, 15, 3) + B18030e19 + B18030e22 + B18030e25 + B18030e28)/B18030e2),
+                Prop_below_poverty_no_disability = 1 - ((!! census_sum("B18030e", 33, 42, 3) + !! census_sum("B18030e", 46, 55, 3))/B18030e29))
     
     invisible(df_pared)
     
@@ -64,8 +64,8 @@ disability_vars <- function(df, df_name) {
                 Employed_no_disability = (B18120e7 + B18120e14)/(B18120e6 + B18120e13),
                 Above_poverty_disability = !! census_sum("B18130e", 5, 40, 7),
                 Above_poverty_no_disability = !! census_sum("B18130e", 8, 43, 7),
-                Prop_above_poverty_disability = Above_poverty_disability/(Above_poverty_disability + !! census_sum("B18130e", 4, 39, 7)),
-                Prop_above_poverty_no_disability = Above_poverty_no_disability/(Above_poverty_no_disability + !! census_sum("B18130e", 7, 42, 7))) %>%
+                Prop_below_poverty_disability = 1 - (Above_poverty_disability/(Above_poverty_disability + !! census_sum("B18130e", 4, 39, 7))),
+                Prop_below_poverty_no_disability = 1 - (Above_poverty_no_disability/(Above_poverty_no_disability + !! census_sum("B18130e", 7, 42, 7)))) %>%
       dplyr::select(-starts_with("Above"))
     
     invisible(df_pared)
@@ -85,9 +85,9 @@ disability_vars <- function(df, df_name) {
               Odds_employ_no_disability = Employed_no_disability/(1-Employed_no_disability), # Create odds variable (See "OddsRatioDemo.xlsx for more info")
               Odds_employ_disability = Employed_disability/(1-Employed_disability), # Create odds variable
               Employ_disparity = Odds_employ_disability/Odds_employ_no_disability,
-              Odds_no_poverty_no_disability = Prop_above_poverty_no_disability/(1-Prop_above_poverty_no_disability), 
-              Odds_no_poverty_disability = Prop_above_poverty_disability/(1-Prop_above_poverty_disability), # Create odds variable
-              Poverty_disparity = Odds_no_poverty_disability/Odds_no_poverty_no_disability) %>% # Ratio of odds of being employed (Disability:No disability)
+              Odds_poverty_no_disability = Prop_below_poverty_no_disability/(1-Prop_below_poverty_no_disability), 
+              Odds_poverty_disability = Prop_below_poverty_disability/(1-Prop_below_poverty_disability), # Create odds variable
+              Poverty_disparity = Odds_poverty_disability/Odds_poverty_no_disability) %>% # Ratio of odds of being employed (Disability:No disability)
     dplyr::select(-starts_with("Odds")) %>%
     arrange(CBSA) %>% # ex. CBSA 47900 == Index 26
     mutate(Index = dplyr::row_number())
@@ -119,7 +119,7 @@ disability_vars <- function(df, df_name) {
            Group_no_disability = str_detect(Topic_group, "no"),
            Rank = str_detect(Topic_group, "rank"),
            Disparity = str_detect(Topic_group, "disparity"),
-           TOPIC_AREA = ifelse(Topic_employ == "TRUE", "Employment:equity group population ratio", "At/above poverty:equity group population ratio"),
+           TOPIC_AREA = ifelse(Topic_employ == "TRUE", "Employment:equity group population ratio", "Below poverty level:equity group population ratio"),
            EQUITY_GROUP = ifelse(Group_no_disability == "TRUE", "No disability", "One or more disabilities"),
            EQUITY_CHARACTERISTIC = "Disability status",
            MEASURE = ifelse(Rank == "TRUE" & Disparity == "TRUE", "Rank of disparity",
@@ -143,9 +143,9 @@ age_vars <- function(df, df_name) {
               Above_poverty_under_35 = !! census_sum_select("B17001e", c(39, 40, 53, 54)), # ages 18 - 34
               Above_poverty_35_64 = !! census_sum_select("B17001e", c(41, 42, 43, 55, 56, 57)),
               Above_poverty_65 = !! census_sum_select("B17001e", c(44, 45, 58, 59)),
-              Prop_above_pov_under_35 = Above_poverty_under_35/(Above_poverty_under_35 + !! census_sum_select("B17001e", c(10, 11, 24, 25))),
-              Prop_above_pov_35_64 = Above_poverty_35_64/(Above_poverty_35_64 + !! census_sum_select("B17001e", c(12, 13, 14, 26, 27, 28))),
-              Prop_above_pov_65 = Above_poverty_65/(Above_poverty_65 + !! census_sum_select("B17001e", c(15, 16, 29, 30))),
+              Prop_below_pov_under_35 = 1-(Above_poverty_under_35/(Above_poverty_under_35 + !! census_sum_select("B17001e", c(10, 11, 24, 25)))),
+              Prop_below_pov_35_64 = 1-(Above_poverty_35_64/(Above_poverty_35_64 + !! census_sum_select("B17001e", c(12, 13, 14, 26, 27, 28)))),
+              Prop_below_pov_65 = 1-(Above_poverty_65/(Above_poverty_65 + !! census_sum_select("B17001e", c(15, 16, 29, 30)))),
               #Employed_16_19 = (B23001e7 + B23001e93)/(!! census_sum_select("B23001e", c(6, 9, 92, 95))),
               #Employed_20_34 = (!! census_sum_select("B23001e", c(14, 21, 28, 35, 100, 107, 114, 121)))/(!! census_sum_select("B23001e", c(13, 16, 20, 23, 27, 30, 34, 37, 99, 102, 106, 109, 113, 116, 120, 123))),
               Employed_under_35 = (!! census_sum("B23001e", 7, 35, 7) + !! census_sum("B23001e", 93, 121, 7))/(!! census_sum("B23001e", 6, 34, 7) + !! census_sum("B23001e", 9, 37, 7) + !! census_sum("B23001e", 92, 120, 7) + !! census_sum("B23001e", 95, 123, 7)),
@@ -195,7 +195,7 @@ age_vars <- function(df, df_name) {
            MEASURE = ifelse(Rank == "TRUE", "Rank of measure", "Measure"),
            TOPIC_AREA = recode(as.character(TOPIC_AREA),
                                Owner_occ = "Owner-occupied units:equity group population ratio",
-                               pov = "At/above poverty:equity group population ratio",
+                               pov = "Below poverty level:equity group population ratio",
                                Employ = "Employment:equity group population ratio",
                                Hburden = "Housing cost burden for owners:equity group population ratio",
                                Rburden = "Housing cost burden for renters:equity group population ratio"),

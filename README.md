@@ -4,7 +4,9 @@ Code contained in this repo helped expand the first version of this visualizatio
 
 ![](Images/Disparity_DB1.PNG)
 
-![](Images/Disparity_DB2.PNG)
+[![](Images/Disparity_DB2.PNG)](https://public.tableau.com/shared/BDH4GGG73?:display_count=y&:origin=viz_share_link)
+
+[![](Images/Disparity_DB3.PNG)](https://public.tableau.com/profile/nicole.sullivan#!/vizhome/MetroComparisons/Story?publish=yes)
 
 # Contributors
 * Nicole Sullivan (nicole.sullivan@metc.state.mn.us)

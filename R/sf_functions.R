@@ -161,13 +161,15 @@ age_vars <- function(df, df_name) {
               #Hburden_15_24 = (B25093e6 + B25093e7)/B25093e2,
               #Hburden_25_34 = (B25093e13 + B25093e14)/B25093e9,
               Hburden_under_35 = (!! census_sum_select("B25093e", c(6, 7, 13, 14)))/(B25093e2 + B25093e9 - B25093e8 - B25093e15), # Subtract not-computed households from universe
-              Hburden_35_64 = (B25093e20 + B25093e21)/B25093e16,
-              Hburden_65 = (B25093e27 + B25093e28)/B25093e23,
+              Hburden_35_64 = (B25093e20 + B25093e21)/(B25093e16 - B25093e22), # Subtract not-computed
+              Hburden_65 = (B25093e27 + B25093e28)/(B25093e23 - B25093e29),
+              Hburden_tot = (!! census_sum("B25093e", 6, 27, 7) + !! census_sum("B25093e", 7, 28, 7))/(B25093e1 - !! census_sum("B25093e", 8, 29, 7)), # Subtract not-computed households from universe
               #Rburden_15_24 = (B25072e6 + B25072e7)/B25072e2,
               #Rburden_25_34 = (B25072e13 + B25072e14)/B25072e9,
               Rburden_under_35 = (!! census_sum_select("B25072e", c(6, 7, 13, 14)))/(B25072e2 + B25072e9 - B25072e8 - B25072e15), # Subtract not-computed households from universe
-              Rburden_35_64 = (B25072e20 + B25072e21)/B25072e16,
-              Rburden_65 = (B25072e27 + B25072e28)/B25072e23) %>%
+              Rburden_35_64 = (B25072e20 + B25072e21)/(B25072e16 - B25072e22),
+              Rburden_65 = (B25072e27 + B25072e28)/(B25072e23 - B25072e29),
+              Rburden_tot = (!! census_sum("B25072e", 6, 27, 7) + !! census_sum("B25072e", 7, 28, 7))/(B25072e1 - !! census_sum("B25072e", 8, 29, 7)) ) %>%
     arrange(CBSA) %>%
     mutate(Index = row_number())
   
@@ -189,7 +191,7 @@ age_vars <- function(df, df_name) {
     dplyr::select(-starts_with("Index")) %>%
     gather(key = "Topic_group", value = "VALUE", -one_of("CBSA")) %>%
     mutate(Rank = str_detect(Topic_group, "rank"),
-           EQUITY_GROUP = str_extract_all(Topic_group, paste(c("under_35", "35_64", "65"), collapse = "|")),
+           EQUITY_GROUP = str_extract_all(Topic_group, paste(c("under_35", "35_64", "65", "tot"), collapse = "|")),
            EQUITY_CHARACTERISTIC = "Age",
            TOPIC_AREA = str_extract_all(Topic_group, paste(c("Owner_occ", "pov", "Employ", "Hburden", "Rburden"), collapse = "|")),
            MEASURE = ifelse(Rank == "TRUE", "Rank of measure", "Measure"),
@@ -207,7 +209,8 @@ age_vars <- function(df, df_name) {
                                  #`16_19` = "16-19",
                                  #`20_34` = "20-34",
                                  `35_64` = "35-64",
-                                 `65` = "65+"),
+                                 `65` = "65+",
+                                 tot = "Total"),
            YEAR = df_name) %>%
     dplyr::select(-Topic_group, -Rank)
   
